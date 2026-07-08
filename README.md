@@ -1,105 +1,95 @@
 # Kenata — app
 
-Application PWA de gestion du groupe **Kenata**. Ce dépôt contient le **Lot 0 : socle** (authentification, groupe unique, membres et rôles, règles de sécurité) et le **Lot 1 : Répertoire**.
+Application PWA de gestion du groupe **Kenata**. Contient le **Lot 0 : socle** (authentification, groupe unique, membres et rôles) et le **Lot 1 : Répertoire**.
 
-Stack : React + TypeScript + Vite, Firebase (Realtime Database, Auth, Hosting, Cloud Functions).
+Stack : **React + TypeScript + Vite** (frontend PWA) · **API PHP native** (aucune dépendance) · **MySQL/MariaDB** · hébergement **IONOS mutualisé**.
 
-## Architecture (rappel)
+## Architecture
 
-- **Single-tenant** : un seul groupe, sous `/groups/{VITE_GROUP_ID}`. Accès **sur invitation uniquement**.
-- **Auth** : Google (le magic link e-mail sera ajouté plus tard).
-- **Sécurité** : la création d'un membre n'est possible **que** via la Cloud Function `onUserCreate` (SDK admin). Les règles Realtime Database interdisent à tout client d'écrire dans `/members`. Un utilisateur sans invitation n'a aucun accès.
+```
+Navigateur (React PWA)
+   │  fetch /api/...  (même origine → cookie de session, en-tête CSRF)
+   ▼
+IONOS (my.kenata.fr)
+   /            → build React statique (dist/)
+   /api/        → API PHP (front controller : api/index.php)
+   MySQL/MariaDB (PDO, requêtes préparées)
+```
+
+- **Single-tenant** : un seul groupe. Accès **sur invitation uniquement**.
+- **Auth** : Google OAuth 2.0 implémenté en PHP (magic link e-mail prévu plus tard). Sessions serveur par cookie httpOnly/Secure/SameSite.
+- **Autorisation** : rôles owner/admin/member vérifiés côté serveur à chaque endpoint.
 
 ## Prérequis
 
-- Node.js 20+
-- Firebase CLI : `npm i -g firebase-tools`
-- Un projet Firebase avec **Realtime Database** et **Authentication (Google)** activés.
+- Node.js 20+ (frontend) et PHP 8.1+ (API). MySQL/MariaDB.
+- En prod : hébergement IONOS avec PHP + MySQL + `mod_rewrite`.
 
-## Configuration
+## Base de données
 
-1. Installer les dépendances :
-
-   ```bash
-   npm install
-   cd functions && npm install && cd ..
-   ```
-
-2. Config client : copier `.env.example` en `.env.local` et renseigner les valeurs Firebase (console → Paramètres du projet → Vos applications). Définir aussi `VITE_GROUP_ID` (ex. `kenata`).
-
-3. Renseigner l'ID de projet dans `.firebaserc` (remplacer `REMPLACER_PAR_ID_PROJET_FIREBASE`).
-
-4. Config des Cloud Functions (propriétaire initial + groupe) : copier
-   `functions/.env.example` en `functions/.env` et renseigner `OWNER_EMAIL` et
-   `GROUP_ID`. Ces variables sont lues via `process.env` par `functions/src/index.ts`
-   et déployées avec la fonction.
-
-## Activer l'authentification Google
-
-Console Firebase → Authentication → Sign-in method → activer **Google**. Ajouter le domaine de dev (`localhost`) et le domaine de prod aux domaines autorisés.
-
-## Démarrer en développement
+Importer le schéma :
 
 ```bash
+mysql -u <user> -p <base> < db/schema.sql
+```
+
+## Configuration de l'API
+
+Copier `api/config.example.php` en **`api/config.php`** (ou, mieux, `kenata-config.php` **hors racine web**) et renseigner :
+
+- `db` : hôte, base, utilisateur, mot de passe.
+- `owner_email` : ton e-mail Google (deviendra `owner` à la 1re connexion si le groupe est vide).
+- `google.client_id` / `client_secret` : identifiants OAuth (voir ci-dessous).
+- `google.redirect_uri` : `https://my.kenata.fr/api/auth/google/callback`.
+- `security.app_secret` : chaîne aléatoire longue (`openssl rand -hex 32`).
+
+Ce fichier **ne doit jamais être versionné** (déjà dans `.gitignore`).
+
+## Configurer Google OAuth
+
+1. Google Cloud Console → *APIs & Services* → *Credentials* → *Create OAuth client ID* → type *Web application*.
+2. **Authorized redirect URIs** : `https://my.kenata.fr/api/auth/google/callback` (et `http://localhost:8000/api/auth/google/callback` pour le dev si besoin).
+3. Reporter `client_id` / `client_secret` dans la config.
+
+## Développement local
+
+Deux serveurs : l'API PHP et le frontend Vite (qui proxifie `/api`).
+
+```bash
+# 1) API PHP (port 8000) — sert de routeur
+php -S localhost:8000 api/index.php
+
+# 2) Frontend (port 5173), dans un autre terminal
+npm install
 npm run dev
 ```
 
-## Déployer
+Ouvre http://localhost:5173. Le proxy Vite envoie `/api/*` vers `http://localhost:8000`.
 
-```bash
-# Règles de la base
-npm run rules:deploy
+## Déploiement sur IONOS
 
-# Cloud Functions
-cd functions && npm run build && cd ..
-npm run functions:deploy
+1. `npm run build` → génère `dist/`.
+2. Déposer le contenu de `dist/` à la racine web, et le dossier `api/` sous la racine (→ `my.kenata.fr/api`).
+3. Placer `config.php` (idéalement hors racine web : `kenata-config.php` un niveau au-dessus).
+4. Importer `db/schema.sql` dans la base MySQL.
+5. Vérifier que `mod_rewrite` est actif (les `.htaccess` gèrent le routage SPA et l'API).
 
-# App (build + hosting)
-npm run deploy
-```
+## Sécurité — garanties
 
-## Amorçage (premier accès)
+- **Requêtes préparées PDO** partout (anti-injection SQL).
+- **Accès sur invitation strict** : aucun membre ne peut être créé côté client ; l'accès est résolu côté serveur (propriétaire initial ou invitation), sinon aucun accès.
+- **Rôle `owner` protégé** : seul un owner peut créer/modifier/supprimer un owner.
+- **Sessions** : jeton aléatoire en cookie httpOnly + Secure + SameSite=Lax ; seul le SHA-256 est stocké.
+- **CSRF** : en-tête `X-CSRF-Token` requis sur les écritures (jeton HMAC lié à la session).
+- **OAuth** : paramètre `state` anti-CSRF à usage unique ; e-mail vérifié exigé.
+- **Secrets** hors dépôt (`config.php`), HTTPS de rigueur en prod.
 
-1. Déployer les règles et les functions.
-2. Se connecter avec le compte **propriétaire** (email = `owner_email`). La fonction `onUserCreate` crée automatiquement le membre `owner` et initialise `meta`.
-3. Le propriétaire invite les autres membres depuis l'onglet **Membres** ; chacun obtient l'accès à sa première connexion Google.
+**À durcir plus tard** : rate-limiting sur les endpoints d'auth, magic link e-mail, journalisation des changements de rôle.
 
-## Périmètre du Lot 0
+## Périmètre
 
-- [x] Auth Google + garde d'accès (connexion / non-membre / membre)
-- [x] Groupe unique + réglages (nom)
-- [x] Membres : liste, invitation, rôles (owner/admin/member), retrait
-- [x] Règles de sécurité Realtime Database
-- [x] Cloud Function de résolution des accès (invitation obligatoire)
-- [x] PWA installable (manifest + service worker)
-
-## Sécurité — garanties et limites connues
-
-**Garanti par les règles + la Cloud Function :**
-
-- Aucun accès sans invitation : un membre ne peut être créé que par la fonction `onUserCreate` (SDK admin), jamais par un client.
-- Un utilisateur ne peut pas s'auto-attribuer ou modifier son rôle (`/members/{uid}/role` est en écriture admin/owner uniquement).
-- Un non-membre ne peut ni lire ni écrire les données du groupe (règles + `.read/.write` par défaut à `false`).
-- Les invitations (emails) ne sont lisibles que par les admins ; on ne peut pas inviter au rôle `owner`.
-- Email vérifié exigé avant tout octroi d'accès.
-- Le rôle `owner` est protégé : un `admin` ne peut ni promouvoir quelqu'un `owner`, ni modifier/supprimer le compte `owner` (rôle et profil). Seul l'`owner` peut agir sur un compte `owner`.
-
-**À durcir dans un lot ultérieur (admins considérés comme de confiance en V1) :**
-
-- Journaliser les changements de rôle et les retraits de membre.
-- Ajouter des `.validate` plus stricts sur les nœuds de données (formats, tailles) au fil des lots métier.
-
----
-
-## Périmètre du Lot 1 (Répertoire)
-
-- [x] CRUD morceau : titre, artiste, album, durée, type (reprise/compo), maîtrise 0-5, accordage, tonalité, BPM, pochette
-- [x] Onglets Reprise / Compo, auto-complétion locale (titres/artistes existants)
-- [x] Filtres (artiste, accordage, album, maîtrise min) et tris (A→Z, Z→A, maîtrise, album, durée, BPM)
-- [x] Alerte doublon (titre + artiste)
-- [x] Import en masse (`Titre ; Artiste ; Accordage ; Maîtrise ; Album ; Durée ; BPM ; Tonalité`)
-- [x] Fiche morceau (rôles, points de vigilance)
-- [ ] Enrichissement métadonnées : interface prête (`metadata.ts`), fournisseur à brancher (décision en attente)
+**Lot 0** — auth Google, groupe unique, membres/invitations/rôles, sessions, CSRF.
+**Lot 1** — Répertoire : CRUD morceaux, filtres, tris, import en masse, fiche morceau (rôles/vigilance), doublons.
+Enrichissement métadonnées : interface prête (`src/features/repertoire/metadata.ts`), fournisseur à brancher.
 
 Lots suivants : Setlists → Concerts → Booking (CRM) → Identité/offline.
-Voir le cahier des charges technique (hors dépôt).

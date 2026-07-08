@@ -1,0 +1,2 @@
+# Aucun accès HTTP direct aux classes internes.
+Require all denied

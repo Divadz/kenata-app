@@ -1,63 +1,48 @@
 import { useEffect, useState } from 'react';
-import { onValue, push, remove, serverTimestamp, set, update } from 'firebase/database';
-import { dbRef, paths } from '../../firebase/db';
-import { useAuth } from '../../auth/AuthProvider';
-import type { Invitation, Member, Role } from '../../types/models';
+import { api } from '../../api/client';
+import type { Role } from '../../types/models';
 
-export interface MemberRow extends Member {
+export interface MemberRow {
   uid: string;
+  email: string;
+  role: Role;
+  profile?: { name?: string | null };
 }
-export interface InvitationRow extends Invitation {
+export interface InvitationRow {
   id: string;
+  email: string;
+  role: Exclude<Role, 'owner'>;
 }
 
 export function useMembers() {
-  const { user } = useAuth();
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [invitations, setInvitations] = useState<InvitationRow[]>([]);
 
+  async function reload() {
+    setMembers(await api<MemberRow[]>('/members'));
+    // Réservé aux admins côté serveur : un 403 laisse la liste vide.
+    try {
+      setInvitations(await api<InvitationRow[]>('/invitations'));
+    } catch {
+      setInvitations([]);
+    }
+  }
+
   useEffect(() => {
-    const unsubM = onValue(dbRef(paths.members()), (snap) => {
-      const val = (snap.val() as Record<string, Member> | null) ?? {};
-      setMembers(Object.entries(val).map(([uid, m]) => ({ uid, ...m })));
-    });
-    // La lecture des invitations est réservée aux admins par les règles ;
-    // pour un non-admin, le callback d'erreur laisse simplement la liste vide.
-    const unsubI = onValue(
-      dbRef(paths.invitations()),
-      (snap) => {
-        const val = (snap.val() as Record<string, Invitation> | null) ?? {};
-        setInvitations(Object.entries(val).map(([id, i]) => ({ id, ...i })));
-      },
-      () => setInvitations([])
-    );
-    return () => {
-      unsubM();
-      unsubI();
-    };
+    void reload();
   }, []);
 
-  /** Invite un email (admin uniquement — appliqué par les règles). */
   function invite(email: string, role: Exclude<Role, 'owner'>) {
-    const invitation: Invitation = {
-      email: email.trim().toLowerCase(),
-      role,
-      invitedBy: user?.uid,
-      createdAt: serverTimestamp() as unknown as number,
-    };
-    return push(dbRef(paths.invitations()), invitation);
+    return api('/members/invite', { method: 'POST', body: { email, role } }).then(reload);
   }
-
   function cancelInvitation(id: string) {
-    return remove(dbRef(`${paths.invitations()}/${id}`));
+    return api(`/invitations/${id}`, { method: 'DELETE' }).then(reload);
   }
-
   function changeRole(uid: string, role: Role) {
-    return update(dbRef(paths.member(uid)), { role });
+    return api(`/members/${uid}`, { method: 'PATCH', body: { role } }).then(reload);
   }
-
   function removeMember(uid: string) {
-    return set(dbRef(paths.member(uid)), null);
+    return api(`/members/${uid}`, { method: 'DELETE' }).then(reload);
   }
 
   return { members, invitations, invite, cancelInvitation, changeRole, removeMember };

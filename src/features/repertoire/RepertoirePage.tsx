@@ -3,12 +3,12 @@ import { TUNINGS } from './constants';
 import { formatDuration } from '../../utils/duration';
 import { SongForm } from './SongForm';
 import { ImportSongs } from './ImportSongs';
-import { useSongs, type SongRow } from './useSongs';
+import { deleteSong, useSongs, type SongRow } from './useSongs';
 
 type SortKey = 'az' | 'za' | 'mastery_desc' | 'mastery_asc' | 'album' | 'duration' | 'bpm';
 
 export function RepertoirePage() {
-  const { songs, loading, deleteSong } = useSongs();
+  const { songs, loading, reload } = useSongs();
 
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
@@ -92,9 +92,14 @@ export function RepertoirePage() {
       </div>
 
       {showForm && (
-        <SongForm songs={songs} editing={editing} onClose={() => setShowForm(false)} />
+        <SongForm
+          songs={songs}
+          editing={editing}
+          onSaved={reload}
+          onClose={() => setShowForm(false)}
+        />
       )}
-      {showImport && <ImportSongs onClose={() => setShowImport(false)} />}
+      {showImport && <ImportSongs onSaved={reload} onClose={() => setShowImport(false)} />}
 
       <div className="row filters full">
         <select value={fArtist} onChange={(e) => setFArtist(e.target.value)}>
@@ -176,6 +181,7 @@ export function RepertoirePage() {
                           className="btn small danger"
                           onClick={async () => {
                             await deleteSong(s.id);
+                            await reload();
                             setPendingDelete(null);
                           }}
                         >

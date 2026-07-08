@@ -10,10 +10,10 @@ export interface MemberProfile {
 }
 
 export interface Member {
+  user_id?: string;
   role: Role;
   email: string;
   profile?: MemberProfile;
-  joined_at?: number;
 }
 
 export interface Invitation {
@@ -46,13 +46,7 @@ export interface Song {
   music_key?: string;
   bpm?: number;
   cover?: string;
-  created_at?: number;
-  updated_at?: number;
-  last_played_at?: number;
-}
-
-/** Fiche morceau : notes de jeu attachées à un morceau. */
-export interface SongSheet {
+  // Fiche morceau (intégrée en colonnes côté MySQL)
   roles?: string;
   watch?: string;
 }

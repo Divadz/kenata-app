@@ -6,11 +6,12 @@ dist-ssr
 .env.local
 .env.*.local
 
-# Firebase
-.firebase
-firebase-debug.log
-functions/node_modules
-functions/lib
+# Config backend (secrets) — ne JAMAIS versionner
+api/config.php
+kenata-config.php
+
+# Scripts de démarrage locaux (chemins spécifiques à la machine)
+start-dev.bat
 
 # Éditeurs
 .vscode/*

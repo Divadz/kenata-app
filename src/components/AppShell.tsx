@@ -1,10 +1,9 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { useGroup } from '../features/group/useGroup';
-import { logout } from '../firebase/auth';
 
 export function AppShell() {
-  const { member } = useAuth();
+  const { member, logout } = useAuth();
   const { meta } = useGroup();
 
   return (

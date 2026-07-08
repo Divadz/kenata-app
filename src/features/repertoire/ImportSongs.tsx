@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { useSongs } from './useSongs';
+import { importSongs } from './useSongs';
 
-export function ImportSongs({ onClose }: { onClose: () => void }) {
-  const { importSongs } = useSongs();
+export function ImportSongs({ onSaved, onClose }: { onSaved: () => void; onClose: () => void }) {
   const [text, setText] = useState('');
   const [result, setResult] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -13,7 +12,12 @@ export function ImportSongs({ onClose }: { onClose: () => void }) {
     try {
       const { added, skipped } = await importSongs(text);
       setResult(`${added} morceau(x) ajouté(s)${skipped ? `, ${skipped} ligne(s) ignorée(s)` : ''}.`);
-      if (added > 0) setText('');
+      if (added > 0) {
+        setText('');
+        onSaved();
+      }
+    } catch (e) {
+      setResult((e as Error).message);
     } finally {
       setBusy(false);
     }
@@ -35,7 +39,7 @@ export function ImportSongs({ onClose }: { onClose: () => void }) {
         rows={8}
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Chop Suey! ; System of a Down ; Drop C ; 4 ; Toxicity ; 3:30 ; 127 ; Do# mineur"
+        placeholder="Mon titre ; Mon artiste ; Drop C ; 4 ; Mon album ; 3:30 ; 127 ; Do# mineur"
       />
       <div className="row">
         <button className="btn primary" onClick={onImport} disabled={busy || !text.trim()}>

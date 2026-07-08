@@ -1,0 +1,13 @@
+# Toutes les requêtes sous /api/ passent par le front controller.
+RewriteEngine On
+RewriteBase /api/
+
+# Ne pas réécrire les fichiers/dossiers réellement existants.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [QSA,L]
+
+# Interdit l'accès direct à la config et aux libs si elles étaient dans le webroot.
+<FilesMatch "^(config|bootstrap)\.php$">
+  Require all denied
+</FilesMatch>

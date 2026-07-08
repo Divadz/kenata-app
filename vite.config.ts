@@ -25,5 +25,15 @@ export default defineConfig({
       }
     })
   ],
-  server: { port: 5173 }
+  server: {
+    port: 5173,
+    // En dev : le frontend appelle /api → serveur PHP local.
+    // Lance l'API avec :  php -S localhost:8000 -t . api/index.php   (ou via IONOS)
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+    },
+  },
 });

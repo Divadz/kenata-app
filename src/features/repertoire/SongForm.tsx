@@ -1,19 +1,18 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { Song, SongSheet, SongType } from '../../types/models';
+import { useMemo, useState } from 'react';
+import type { Song, SongType } from '../../types/models';
 import { KEYS, MASTERY_LEVELS, TUNINGS } from './constants';
 import { formatDuration, parseDuration } from '../../utils/duration';
 import { lookupMetadata } from './metadata';
-import { findDuplicate, getSongSheet, saveSongSheet, type SongRow, useSongs } from './useSongs';
+import { createSong, findDuplicate, updateSong, type SongRow } from './useSongs';
 
 interface Props {
   songs: SongRow[];
   editing: SongRow | null;
+  onSaved: () => void;
   onClose: () => void;
 }
 
-export function SongForm({ songs, editing, onClose }: Props) {
-  const { addSong, updateSong } = useSongs();
-
+export function SongForm({ songs, editing, onSaved, onClose }: Props) {
   const [type, setType] = useState<SongType>(editing?.type ?? 'reprise');
   const [title, setTitle] = useState(editing?.title ?? '');
   const [artist, setArtist] = useState(editing?.artist ?? '');
@@ -24,20 +23,10 @@ export function SongForm({ songs, editing, onClose }: Props) {
   const [musicKey, setMusicKey] = useState(editing?.music_key ?? '');
   const [bpm, setBpm] = useState(editing?.bpm ? String(editing.bpm) : '');
   const [cover, setCover] = useState(editing?.cover ?? '');
-  const [roles, setRoles] = useState('');
-  const [watch, setWatch] = useState('');
+  const [roles, setRoles] = useState(editing?.roles ?? '');
+  const [watch, setWatch] = useState(editing?.watch ?? '');
   const [info, setInfo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  // Charge la fiche morceau en édition.
-  useEffect(() => {
-    if (editing) {
-      getSongSheet(editing.id).then((sheet) => {
-        setRoles(sheet?.roles ?? '');
-        setWatch(sheet?.watch ?? '');
-      });
-    }
-  }, [editing]);
 
   const artists = useMemo(
     () => [...new Set(songs.map((s) => s.artist).filter(Boolean))] as string[],
@@ -70,29 +59,31 @@ export function SongForm({ songs, editing, onClose }: Props) {
       setError('Le titre est obligatoire.');
       return;
     }
-    const song: Song = {
+    const song: Partial<Song> = {
       title: title.trim(),
-      artist: artist.trim() || undefined,
-      album: album.trim() || undefined,
-      duration_sec: parseDuration(duration),
+      artist: artist.trim(),
+      album: album.trim(),
+      duration_sec: parseDuration(duration) ?? undefined,
       type,
       mastery,
-      tuning: tuning || undefined,
-      music_key: musicKey || undefined,
+      tuning,
+      music_key: musicKey,
       bpm: bpm ? parseInt(bpm, 10) || undefined : undefined,
-      cover: cover.trim() || undefined,
+      cover: cover.trim(),
+      roles: roles.trim(),
+      watch: watch.trim(),
     };
-    const sheet: SongSheet = { roles: roles.trim(), watch: watch.trim() };
-
-    if (editing) {
-      await updateSong(editing.id, song);
-      await saveSongSheet(editing.id, sheet);
-    } else {
-      const ref = addSong(song); // ThenableReference : .key est disponible immédiatement
-      await ref;
-      if (ref.key) await saveSongSheet(ref.key, sheet);
+    try {
+      if (editing) {
+        await updateSong(editing.id, song);
+      } else {
+        await createSong(song);
+      }
+      onSaved();
+      onClose();
+    } catch (e) {
+      setError((e as Error).message);
     }
-    onClose();
   }
 
   return (

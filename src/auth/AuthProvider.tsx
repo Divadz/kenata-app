@@ -1,19 +1,21 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { onAuthStateChanged, type User } from 'firebase/auth';
-import { onValue } from 'firebase/database';
-import { auth } from '../firebase/config';
-import { dbRef, paths } from '../firebase/db';
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { api, setCsrfToken } from '../api/client';
 import type { Member } from '../types/models';
 
-interface AuthState {
-  /** Utilisateur Firebase authentifié (ou null). */
-  user: User | null;
-  /** Appartenance au groupe (null si l'utilisateur n'est pas membre). */
+interface MeResponse {
+  user: { email: string; name: string | null } | null;
   member: Member | null;
-  /** true tant que l'état auth + appartenance n'est pas résolu. */
+  csrf?: string;
+}
+
+interface AuthState {
+  user: MeResponse['user'];
+  member: Member | null;
   loading: boolean;
   isMember: boolean;
   isAdmin: boolean;
+  refresh: () => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState>({
@@ -22,51 +24,46 @@ const AuthContext = createContext<AuthState>({
   loading: true,
   isMember: false,
   isAdmin: false,
+  refresh: async () => {},
+  logout: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [member, setMember] = useState<Member | null>(null);
-  const [authResolved, setAuthResolved] = useState(false);
-  const [memberResolved, setMemberResolved] = useState(false);
+  const [me, setMe] = useState<MeResponse>({ user: null, member: null });
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    return onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setAuthResolved(true);
-      if (!u) {
-        setMember(null);
-        setMemberResolved(true);
-      } else {
-        setMemberResolved(false);
-      }
-    });
+  const refresh = useCallback(async () => {
+    try {
+      const data = await api<MeResponse>('/auth/me');
+      setCsrfToken(data.csrf ?? '');
+      setMe({ user: data.user, member: data.member });
+    } catch {
+      setCsrfToken('');
+      setMe({ user: null, member: null });
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => {
-    if (!user) return;
-    // Lecture de l'appartenance. Si l'utilisateur n'est pas membre, les règles
-    // renvoient null (aucun accès) — géré par RequireMember.
-    const unsub = onValue(
-      dbRef(paths.member(user.uid)),
-      (snap) => {
-        setMember(snap.exists() ? (snap.val() as Member) : null);
-        setMemberResolved(true);
-      },
-      () => {
-        setMember(null);
-        setMemberResolved(true);
-      }
-    );
-    return unsub;
-  }, [user]);
+  const logout = useCallback(async () => {
+    try {
+      await api('/auth/logout', { method: 'POST' });
+    } finally {
+      await refresh();
+    }
+  }, [refresh]);
 
-  const loading = !authResolved || (!!user && !memberResolved);
-  const isMember = !!member?.role;
-  const isAdmin = member?.role === 'owner' || member?.role === 'admin';
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const isMember = !!me.member?.role;
+  const isAdmin = me.member?.role === 'owner' || me.member?.role === 'admin';
 
   return (
-    <AuthContext.Provider value={{ user, member, loading, isMember, isAdmin }}>
+    <AuthContext.Provider
+      value={{ user: me.user, member: me.member, loading, isMember, isAdmin, refresh, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );

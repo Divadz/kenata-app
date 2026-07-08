@@ -1,23 +1,28 @@
 import { useEffect, useState } from 'react';
-import { onValue, update } from 'firebase/database';
-import { dbRef, paths } from '../../firebase/db';
+import { api } from '../../api/client';
 import type { GroupMeta } from '../../types/models';
 
 export function useGroup() {
   const [meta, setMeta] = useState<GroupMeta | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    return onValue(dbRef(paths.meta()), (snap) => {
-      setMeta(snap.exists() ? (snap.val() as GroupMeta) : null);
+  async function reload() {
+    try {
+      setMeta(await api<GroupMeta>('/group'));
+    } finally {
       setLoading(false);
-    });
-  }, []);
-
-  /** Mise à jour partielle (réservée aux admins par les règles Firebase). */
-  function updateMeta(patch: Partial<GroupMeta>) {
-    return update(dbRef(paths.meta()), patch);
+    }
   }
 
-  return { meta, loading, updateMeta };
+  useEffect(() => {
+    void reload();
+  }, []);
+
+  /** Mise à jour partielle (réservée aux admins côté serveur). */
+  async function updateMeta(patch: Partial<GroupMeta>) {
+    await api('/group', { method: 'PATCH', body: patch });
+    await reload();
+  }
+
+  return { meta, loading, updateMeta, reload };
 }

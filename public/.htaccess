@@ -1,0 +1,14 @@
+# Routage SPA (Apache/IONOS) : sert index.html pour les routes côté client,
+# laisse passer /api et les fichiers réellement présents.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # L'API est servie par le dossier /api (ne pas réécrire).
+  RewriteRule ^api/ - [L]
+
+  # Fichiers/dossiers existants : servis tels quels.
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^ index.html [L]
+</IfModule>
