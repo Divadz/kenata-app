@@ -1,0 +1,158 @@
+:root {
+  --bg: #0f0f10;
+  --panel: #1a1a1d;
+  --border: #2a2a2e;
+  --text: #f2f2f2;
+  --muted: #9a9aa2;
+  --primary: #e63946;
+  --ok: #4caf82;
+  --danger: #e05260;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.center {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.auth-card { max-width: 360px; text-align: center; }
+.auth-card h1 { margin-top: 0; }
+
+.muted { color: var(--muted); }
+.small { font-size: 0.85rem; }
+.ok { color: var(--ok); }
+.error { color: var(--danger); }
+
+.btn {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.btn:hover { border-color: #3a3a40; }
+.btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+.btn.small { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
+.btn.danger { color: var(--danger); border-color: var(--danger); }
+.btn:disabled { opacity: 0.6; cursor: default; }
+
+.shell { min-height: 100vh; display: flex; flex-direction: column; }
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.brand { font-weight: 700; }
+.spacer { flex: 1; }
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.tabs a {
+  color: var(--muted);
+  text-decoration: none;
+  padding: 0.4rem 0.7rem;
+  border-radius: 8px;
+}
+.tabs a.active { color: var(--text); background: var(--panel); }
+
+.content { padding: 1.25rem; max-width: 900px; width: 100%; margin: 0 auto; }
+
+.stack { display: flex; flex-direction: column; gap: 1rem; align-items: flex-start; }
+.row { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.75rem; width: 100%; }
+
+.field { display: flex; flex-direction: column; gap: 0.3rem; }
+.field > span { font-size: 0.85rem; color: var(--muted); }
+
+input, select {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+  font-size: 0.9rem;
+}
+
+.table { width: 100%; border-collapse: collapse; }
+.table th, .table td { text-align: left; padding: 0.5rem; border-bottom: 1px solid var(--border); }
+.table th { color: var(--muted); font-weight: 600; font-size: 0.85rem; }
+
+.list { list-style: none; padding: 0; width: 100%; display: flex; flex-direction: column; gap: 0.4rem; }
+.list li { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+
+/* --- Répertoire (Lot 1) --- */
+.full { width: 100%; }
+.row.between { justify-content: space-between; width: 100%; }
+.card.link { text-decoration: none; color: var(--text); }
+.card.link:hover { border-color: var(--primary); }
+
+.filters { gap: 0.5rem; flex-wrap: wrap; }
+.filters .spacer { flex: 1; min-width: 1rem; }
+
+textarea {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+  font: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+  width: 100%;
+}
+
+.form { width: 100%; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; width: 100%; }
+@media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
+
+.tabs-inline { display: flex; gap: 0.25rem; }
+.tab {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 8px;
+  padding: 0.3rem 0.8rem;
+  cursor: pointer;
+}
+.tab.active { color: #fff; background: var(--primary); border-color: var(--primary); }
+
+.badge {
+  margin-left: 0.4rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.05rem 0.35rem;
+}
+.warn { color: #e0a53f; }
+
+.table-wrap { overflow-x: auto; }
+.table td.actions { white-space: nowrap; display: flex; gap: 0.3rem; }
+
+details summary { cursor: pointer; color: var(--muted); margin-bottom: 0.5rem; }

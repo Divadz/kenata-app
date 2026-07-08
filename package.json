@@ -1,0 +1,30 @@
+{
+  "name": "kenata-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Kenata — app de gestion pour groupe de musique de scène (Lot 0 : socle)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "rules:deploy": "firebase deploy --only database",
+    "functions:deploy": "firebase deploy --only functions",
+    "deploy": "npm run build && firebase deploy"
+  },
+  "dependencies": {
+    "firebase": "^10.12.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.24.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "typescript": "^5.5.3",
+    "vite": "^5.3.3",
+    "vite-plugin-pwa": "^0.20.0"
+  }
+}
