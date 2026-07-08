@@ -45,7 +45,11 @@ export function MembersPage() {
               <td>{m.email}</td>
               <td>
                 {isAdmin && m.role !== 'owner' ? (
-                  <select value={m.role} onChange={(e) => changeRole(m.uid, e.target.value as Role)}>
+                  <select
+                    aria-label={`Rôle de ${m.email}`}
+                    value={m.role}
+                    onChange={(e) => changeRole(m.uid, e.target.value as Role)}
+                  >
                     <option value="member">member</option>
                     <option value="admin">admin</option>
                   </select>
@@ -73,11 +77,18 @@ export function MembersPage() {
           <div className="row">
             <input
               type="email"
+              aria-label="Email à inviter"
+              autoComplete="off"
+              spellCheck={false}
               placeholder="email@exemple.fr"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
-            <select value={role} onChange={(e) => setRole(e.target.value as Exclude<Role, 'owner'>)}>
+            <select
+              aria-label="Rôle de l'invité"
+              value={role}
+              onChange={(e) => setRole(e.target.value as Exclude<Role, 'owner'>)}
+            >
               <option value="member">member</option>
               <option value="admin">admin</option>
             </select>
@@ -85,7 +96,11 @@ export function MembersPage() {
               Inviter
             </button>
           </div>
-          {error && <p className="error">{error}</p>}
+          {error && (
+            <p className="error" role="alert">
+              {error}
+            </p>
+          )}
 
           {invitations.length > 0 && (
             <>

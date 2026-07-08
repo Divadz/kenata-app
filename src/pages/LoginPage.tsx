@@ -22,7 +22,11 @@ export function LoginPage() {
             Connexion dev (local)
           </a>
         )}
-        {error && <p className="error">{ERRORS[error] ?? 'Erreur de connexion.'}</p>}
+        {error && (
+          <p className="error" role="alert">
+            {ERRORS[error] ?? 'Erreur de connexion.'}
+          </p>
+        )}
       </div>
     </div>
   );

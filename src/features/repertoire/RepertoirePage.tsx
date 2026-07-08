@@ -102,31 +102,31 @@ export function RepertoirePage() {
       {showImport && <ImportSongs onSaved={reload} onClose={() => setShowImport(false)} />}
 
       <div className="row filters full">
-        <select value={fArtist} onChange={(e) => setFArtist(e.target.value)}>
+        <select aria-label="Filtrer par artiste" value={fArtist} onChange={(e) => setFArtist(e.target.value)}>
           <option value="">Tous artistes</option>
           {artists.map((a) => (
             <option key={a} value={a}>{a}</option>
           ))}
         </select>
-        <select value={fTuning} onChange={(e) => setFTuning(e.target.value)}>
+        <select aria-label="Filtrer par accordage" value={fTuning} onChange={(e) => setFTuning(e.target.value)}>
           <option value="">Tous accordages</option>
           {TUNINGS.map((t) => (
             <option key={t} value={t}>{t}</option>
           ))}
         </select>
-        <select value={fAlbum} onChange={(e) => setFAlbum(e.target.value)}>
+        <select aria-label="Filtrer par album" value={fAlbum} onChange={(e) => setFAlbum(e.target.value)}>
           <option value="">Tous albums</option>
           {albums.map((a) => (
             <option key={a} value={a}>{a}</option>
           ))}
         </select>
-        <select value={fMinMastery} onChange={(e) => setFMinMastery(Number(e.target.value))}>
+        <select aria-label="Maîtrise minimale" value={fMinMastery} onChange={(e) => setFMinMastery(Number(e.target.value))}>
           {[0, 1, 2, 3, 4, 5].map((m) => (
             <option key={m} value={m}>Maîtrise ≥ {m}</option>
           ))}
         </select>
         <div className="spacer" />
-        <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)}>
+        <select aria-label="Trier le répertoire" value={sort} onChange={(e) => setSort(e.target.value as SortKey)}>
           <option value="az">Titre A→Z</option>
           <option value="za">Titre Z→A</option>
           <option value="mastery_desc">Maîtrise ↓</option>

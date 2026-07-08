@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { api, setCsrfToken } from '../api/client';
 import type { Member } from '../types/models';
 
@@ -57,16 +65,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void refresh();
   }, [refresh]);
 
-  const isMember = !!me.member?.role;
-  const isAdmin = me.member?.role === 'owner' || me.member?.role === 'admin';
+  const value = useMemo<AuthState>(() => {
+    const isMember = !!me.member?.role;
+    const isAdmin = me.member?.role === 'owner' || me.member?.role === 'admin';
+    return { user: me.user, member: me.member, loading, isMember, isAdmin, refresh, logout };
+  }, [me, loading, refresh, logout]);
 
-  return (
-    <AuthContext.Provider
-      value={{ user: me.user, member: me.member, loading, isMember, isAdmin, refresh, logout }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

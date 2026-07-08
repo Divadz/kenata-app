@@ -91,12 +91,16 @@ export function SongForm({ songs, editing, onSaved, onClose }: Props) {
       <div className="row between">
         <div className="tabs-inline">
           <button
+            type="button"
+            aria-pressed={type === 'reprise'}
             className={`tab ${type === 'reprise' ? 'active' : ''}`}
             onClick={() => setType('reprise')}
           >
             Reprise
           </button>
           <button
+            type="button"
+            aria-pressed={type === 'compo'}
             className={`tab ${type === 'compo' ? 'active' : ''}`}
             onClick={() => setType('compo')}
           >
@@ -196,13 +200,21 @@ export function SongForm({ songs, editing, onSaved, onClose }: Props) {
       </details>
 
       {duplicate && (
-        <p className="warn">
+        <p className="warn" aria-live="polite">
           ⚠ Un morceau identique existe déjà : « {duplicate.title} »
           {duplicate.artist ? ` — ${duplicate.artist}` : ''}.
         </p>
       )}
-      {info && <p className="muted">{info}</p>}
-      {error && <p className="error">{error}</p>}
+      {info && (
+        <p className="muted" aria-live="polite">
+          {info}
+        </p>
+      )}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
 
       <div className="row">
         <button className="btn primary" onClick={onSubmit}>

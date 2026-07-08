@@ -19,6 +19,28 @@ body {
   color: var(--text);
 }
 
+/* Focus clavier visible partout (accessibilité). */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Interactions tactiles : pas de délai double-tap, pas de flash bleu. */
+button,
+a,
+select,
+input,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+.btn,
+.tab,
+.tabs a,
+select {
+  touch-action: manipulation;
+}
+
 .center {
   min-height: 100vh;
   display: grid;
@@ -79,6 +101,7 @@ body {
   padding: 0.4rem 0.7rem;
   border-radius: 8px;
 }
+.tabs a:hover { color: var(--text); }
 .tabs a.active { color: var(--text); background: var(--panel); }
 
 .content { padding: 1.25rem; max-width: 900px; width: 100%; margin: 0 auto; }
@@ -102,6 +125,7 @@ input, select {
 .table { width: 100%; border-collapse: collapse; }
 .table th, .table td { text-align: left; padding: 0.5rem; border-bottom: 1px solid var(--border); }
 .table th { color: var(--muted); font-weight: 600; font-size: 0.85rem; }
+.table td { font-variant-numeric: tabular-nums; }
 
 .list { list-style: none; padding: 0; width: 100%; display: flex; flex-direction: column; gap: 0.4rem; }
 .list li { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
