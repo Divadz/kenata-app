@@ -18,7 +18,7 @@ export function LoginPage() {
           Se connecter avec Google
         </a>
         {import.meta.env.DEV && (
-          <a className="btn small" href="/api/auth/dev-login" style={{ marginTop: '0.5rem' }}>
+          <a className="btn small" href="/api/auth/dev-login">
             Connexion dev (local)
           </a>
         )}

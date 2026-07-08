@@ -166,11 +166,13 @@ export function RepertoirePage() {
                   </td>
                   <td>{s.artist || '—'}</td>
                   <td>{s.album || '—'}</td>
-                  <td>{formatDuration(s.duration_sec) || '—'}</td>
-                  <td>{s.mastery ?? 0}</td>
-                  <td>{s.tuning || '—'}</td>
-                  <td>{s.music_key || '—'}</td>
-                  <td>{s.bpm || '—'}</td>
+                  <td className="mono">{formatDuration(s.duration_sec) || '—'}</td>
+                  <td>
+                    <MasteryMeter value={s.mastery ?? 0} />
+                  </td>
+                  <td className="mono">{s.tuning || '—'}</td>
+                  <td className="mono">{s.music_key || '—'}</td>
+                  <td className="mono">{s.bpm || '—'}</td>
                   <td className="actions">
                     <button className="btn small" onClick={() => openEdit(s)}>
                       Éditer
@@ -204,5 +206,16 @@ export function RepertoirePage() {
         </div>
       )}
     </section>
+  );
+}
+
+/** Jauge de maîtrise facon VU-mètre (5 segments). */
+function MasteryMeter({ value }: { value: number }) {
+  return (
+    <span className="meter" role="img" aria-label={`Maîtrise ${value} sur 5`}>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <span key={i} className={`meter-seg ${i < value ? 'on' : ''}`} />
+      ))}
+    </span>
   );
 }
