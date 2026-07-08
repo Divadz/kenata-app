@@ -4,6 +4,16 @@
    cyan = données/accordage (afficheur tuner), data en monospace.
    ========================================================================= */
 
+/* Police du logo Kenata (grunge) — auto-hébergée, réservée aux titres. */
+@font-face {
+  font-family: "Ambulance Shotgun";
+  src: url("/fonts/ambulanceshotgun.woff2") format("woff2"),
+       url("/fonts/ambulanceshotgun.woff") format("woff");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --ink: #14121a;
   --panel: #1c1922;
@@ -23,6 +33,7 @@
 
   --mono: ui-monospace, "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --sans: -apple-system, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --display: "Ambulance Shotgun", var(--sans);
 
   color-scheme: dark;
 }
@@ -41,12 +52,19 @@ body {
 
 /* ---- Typographie ---- */
 h1, h2, h3 { margin: 0 0 0.2em; line-height: 1.05; }
-h1 { font-size: clamp(1.6rem, 4vw, 2.2rem); font-weight: 800; letter-spacing: -0.02em; }
-h2 {
-  font-size: 1.15rem;
-  font-weight: 800;
+h1 {
+  font-family: var(--display);
+  font-size: clamp(2rem, 5vw, 2.8rem);
+  font-weight: 400;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.01em;
+}
+h2 {
+  font-family: var(--display);
+  font-size: 1.5rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 h3 { font-size: 0.95rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
 
@@ -96,10 +114,11 @@ button, a, select, input, textarea { -webkit-tap-highlight-color: transparent; }
   background: linear-gradient(var(--panel), var(--ink));
 }
 .brand {
-  font-weight: 800;
+  font-family: var(--display);
+  font-weight: 400;
   text-transform: uppercase;
-  letter-spacing: 0.14em;
-  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  font-size: 1.25rem;
 }
 .spacer { flex: 1; }
 
