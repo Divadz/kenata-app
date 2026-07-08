@@ -51,20 +51,21 @@ body {
 }
 
 /* ---- Typographie ---- */
-h1, h2, h3 { margin: 0 0 0.2em; line-height: 1.05; }
-h1 {
+h1, h2, h3 { margin: 0 0 0.2em; line-height: 1.1; }
+/* Titres de section : sans-serif, casse naturelle. */
+h1 { font-size: clamp(1.7rem, 4vw, 2.3rem); font-weight: 800; letter-spacing: -0.02em; }
+h2 { font-size: 1.35rem; font-weight: 800; letter-spacing: -0.01em; }
+
+/* Marque KENATA : police du logo (grunge), capitales. Reservee au nom du groupe. */
+.logo {
   font-family: var(--display);
-  font-size: clamp(2rem, 5vw, 2.8rem);
-  font-weight: 400;
   text-transform: uppercase;
-  letter-spacing: 0.01em;
+  font-weight: 400;
 }
-h2 {
-  font-family: var(--display);
-  font-size: 1.5rem;
-  font-weight: 400;
-  text-transform: uppercase;
+.auth-card .logo {
+  font-size: clamp(2.4rem, 6vw, 3rem);
   letter-spacing: 0.02em;
+  margin: 0;
 }
 h3 { font-size: 0.95rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
 
@@ -118,7 +119,7 @@ button, a, select, input, textarea { -webkit-tap-highlight-color: transparent; }
   font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  font-size: 1.25rem;
+  font-size: 1.35rem;
 }
 .spacer { flex: 1; }
 

@@ -12,7 +12,7 @@ export function LoginPage() {
   return (
     <div className="center">
       <div className="card auth-card">
-        <h1>Kenata 🤘</h1>
+        <h1 className="logo">Kenata 🤘</h1>
         <p className="muted">Espace de gestion du groupe. Accès sur invitation.</p>
         <a className="btn primary" href="/api/auth/google">
           Se connecter avec Google
