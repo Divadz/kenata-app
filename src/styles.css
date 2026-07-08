@@ -256,6 +256,48 @@ textarea { resize: vertical; width: 100%; }
 details summary { cursor: pointer; color: var(--muted); margin-bottom: 0.5rem; font-size: 0.85rem; }
 code { font-family: var(--mono); font-size: 0.85em; color: var(--cyan); }
 
+/* ---- Setlists (Lot 2) ---- */
+.setlist-card .setlist-name { color: var(--text); text-decoration: none; font-weight: 700; font-size: 1.05rem; }
+.setlist-card .setlist-name:hover { color: var(--amber); }
+
+.gauge {
+  position: relative;
+  height: 28px;
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.gauge-bar { position: absolute; top: 0; left: 0; bottom: 0; background: var(--line); transition: width 0.2s; }
+.gauge.ok .gauge-bar { background: color-mix(in srgb, var(--ok) 55%, transparent); }
+.gauge.under .gauge-bar { background: color-mix(in srgb, var(--amber) 45%, transparent); }
+.gauge.over .gauge-bar { background: color-mix(in srgb, var(--danger) 50%, transparent); }
+.gauge.neutral .gauge-bar { background: color-mix(in srgb, var(--cyan) 28%, transparent); }
+.gauge-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; }
+
+.setlist { list-style: none; margin: 0; padding: 0; width: 100%; display: flex; flex-direction: column; gap: 0.4rem; }
+.sl-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.6rem;
+}
+.sl-item.souffleur { border-left: 3px solid var(--amber); }
+.sl-item.free { border-left: 3px solid var(--muted); }
+.sl-handle { cursor: grab; color: var(--muted); user-select: none; }
+.sl-num { color: var(--amber); min-width: 1.6rem; text-align: right; }
+.sl-body { flex: 1; min-width: 0; }
+.sl-title { font-weight: 600; }
+.sl-dur { color: var(--cyan); font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.sl-actions { display: flex; gap: 0.25rem; }
+.tuning-change { color: var(--amber); font-size: 0.72rem; margin: 0.15rem 0 0.1rem 0.6rem; }
+.dur-input { width: 72px; }
+.shared { max-width: 720px; }
+
 /* ---- Mouvement réduit ---- */
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }

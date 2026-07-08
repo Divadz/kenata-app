@@ -13,7 +13,9 @@ export function HomePage() {
         <Link className="card link" to="/repertoire">
           Répertoire
         </Link>
-        <div className="card muted">Setlists — à venir</div>
+        <Link className="card link" to="/setlists">
+          Setlists
+        </Link>
         <div className="card muted">Concerts — à venir</div>
         <div className="card muted">Booking (CRM) — à venir</div>
       </div>

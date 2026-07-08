@@ -24,6 +24,7 @@ export function AppShell() {
           Accueil
         </NavLink>
         <NavLink to="/repertoire">Répertoire</NavLink>
+        <NavLink to="/setlists">Setlists</NavLink>
         <NavLink to="/members">Membres</NavLink>
         <NavLink to="/settings">Réglages</NavLink>
       </nav>

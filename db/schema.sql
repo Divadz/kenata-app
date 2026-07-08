@@ -99,6 +99,39 @@ CREATE TABLE IF NOT EXISTS songs (
   CONSTRAINT fk_song_group FOREIGN KEY (group_id) REFERENCES app_group(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Setlists (Lot 2)
+CREATE TABLE IF NOT EXISTS setlists (
+  id                  CHAR(36)     NOT NULL,
+  group_id            VARCHAR(64)  NOT NULL,
+  name                VARCHAR(255) NOT NULL,
+  target_duration_min INT          NULL,
+  share_token         CHAR(32)     NULL,
+  created_at          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uniq_share (share_token),
+  KEY idx_group (group_id),
+  CONSTRAINT fk_setlist_group FOREIGN KEY (group_id) REFERENCES app_group(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Éléments d'une setlist (morceau / bloc libre / souffleur), ordonnés par position
+CREATE TABLE IF NOT EXISTS setlist_items (
+  id               CHAR(36) NOT NULL,
+  setlist_id       CHAR(36) NOT NULL,
+  position         INT      NOT NULL,
+  type             ENUM('song','free','souffleur') NOT NULL DEFAULT 'song',
+  song_id          CHAR(36) NULL,
+  label            VARCHAR(255) NULL,
+  est_duration_sec INT      NULL,
+  souffleur_text   TEXT     NULL,
+  souffleur_mood   VARCHAR(32) NULL,
+  PRIMARY KEY (id),
+  KEY idx_setlist (setlist_id),
+  KEY idx_song (song_id),
+  CONSTRAINT fk_item_setlist FOREIGN KEY (setlist_id) REFERENCES setlists(id) ON DELETE CASCADE,
+  CONSTRAINT fk_item_song    FOREIGN KEY (song_id)    REFERENCES songs(id)    ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Amorçage du groupe unique (renseigne l'id depuis la config : ex. 'kenata').
 INSERT INTO app_group (id, name) VALUES ('kenata', 'Kenata')
   ON DUPLICATE KEY UPDATE name = name;

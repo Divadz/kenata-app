@@ -470,6 +470,210 @@ function songs_import(): never
 }
 
 // ---------------------------------------------------------------------------
+// Setlists
+// ---------------------------------------------------------------------------
+
+function require_setlist(string $id): array
+{
+    $stmt = db()->prepare(
+        'SELECT id, name, target_duration_min, share_token FROM setlists WHERE id = ? AND group_id = ?'
+    );
+    $stmt->execute([$id, group_id()]);
+    $row = $stmt->fetch();
+    if (!$row) {
+        json_response(['error' => 'not_found'], 404);
+    }
+    return $row;
+}
+
+/** Éléments d'une setlist enrichis des données morceau (pour l'affichage). */
+function setlist_items_with_songs(string $setlistId): array
+{
+    $stmt = db()->prepare(
+        'SELECT i.id, i.position, i.type, i.song_id, i.label, i.est_duration_sec,
+                i.souffleur_text, i.souffleur_mood,
+                so.title AS song_title, so.artist AS song_artist, so.duration_sec AS song_duration,
+                so.tuning AS song_tuning, so.music_key AS song_key, so.bpm AS song_bpm
+         FROM setlist_items i
+         LEFT JOIN songs so ON so.id = i.song_id
+         WHERE i.setlist_id = ?
+         ORDER BY i.position'
+    );
+    $stmt->execute([$setlistId]);
+    return $stmt->fetchAll();
+}
+
+function setlists_list(): never
+{
+    Auth::requireMember();
+    $stmt = db()->prepare(
+        "SELECT s.id, s.name, s.target_duration_min, s.share_token,
+            (SELECT COUNT(*) FROM setlist_items i WHERE i.setlist_id = s.id) AS item_count,
+            (SELECT COALESCE(SUM(CASE WHEN i.type = 'song' THEN so.duration_sec ELSE i.est_duration_sec END), 0)
+               FROM setlist_items i LEFT JOIN songs so ON so.id = i.song_id
+               WHERE i.setlist_id = s.id) AS total_sec
+         FROM setlists s WHERE s.group_id = ? ORDER BY s.updated_at DESC"
+    );
+    $stmt->execute([group_id()]);
+    json_response($stmt->fetchAll());
+}
+
+function setlists_create(): never
+{
+    Auth::requireMember();
+    Auth::enforceCsrf();
+    $b = read_json();
+    $name = nullable_str($b['name'] ?? '', 255);
+    if ($name === null) {
+        json_response(['error' => 'name_required'], 422);
+    }
+    $id = uuidv4();
+    db()->prepare('INSERT INTO setlists (id, group_id, name, target_duration_min) VALUES (?, ?, ?, ?)')
+        ->execute([$id, group_id(), $name, nullable_int($b['target_duration_min'] ?? null)]);
+    json_response(['id' => $id], 201);
+}
+
+function setlist_get(string $id): never
+{
+    Auth::requireMember();
+    $sl = require_setlist($id);
+    $sl['items'] = setlist_items_with_songs($id);
+    json_response($sl);
+}
+
+function setlist_update(string $id): never
+{
+    Auth::requireMember();
+    Auth::enforceCsrf();
+    require_setlist($id);
+    $b = read_json();
+    $fields = [];
+    $params = [];
+    if (array_key_exists('name', $b)) {
+        $name = nullable_str($b['name'], 255);
+        if ($name === null) {
+            json_response(['error' => 'name_required'], 422);
+        }
+        $fields[] = 'name = ?';
+        $params[] = $name;
+    }
+    if (array_key_exists('target_duration_min', $b)) {
+        $fields[] = 'target_duration_min = ?';
+        $params[] = nullable_int($b['target_duration_min']);
+    }
+    if ($fields) {
+        $params[] = $id;
+        db()->prepare('UPDATE setlists SET ' . implode(', ', $fields) . ', updated_at = NOW() WHERE id = ?')
+            ->execute($params);
+    }
+    json_response(['ok' => true]);
+}
+
+function setlist_delete(string $id): never
+{
+    Auth::requireMember();
+    Auth::enforceCsrf();
+    db()->prepare('DELETE FROM setlists WHERE id = ? AND group_id = ?')->execute([$id, group_id()]);
+    json_response(['ok' => true]);
+}
+
+function sanitize_setlist_item(array $it): array
+{
+    $type = in_array($it['type'] ?? '', ['song', 'free', 'souffleur'], true) ? $it['type'] : 'song';
+    $out = [
+        'type' => $type, 'song_id' => null, 'label' => null, 'est_duration_sec' => null,
+        'souffleur_text' => null, 'souffleur_mood' => null,
+    ];
+    if ($type === 'song') {
+        $sid = $it['song_id'] ?? null;
+        $out['song_id'] = is_string($sid) && $sid !== '' ? $sid : null;
+    } elseif ($type === 'free') {
+        $out['label'] = nullable_str($it['label'] ?? '', 255);
+        $out['est_duration_sec'] = nullable_int($it['est_duration_sec'] ?? null);
+    } else {
+        $txt = trim((string) ($it['souffleur_text'] ?? ''));
+        $out['souffleur_text'] = $txt === '' ? null : $txt;
+        $out['souffleur_mood'] = nullable_str($it['souffleur_mood'] ?? '', 32);
+    }
+    return $out;
+}
+
+/** Remplace tous les éléments (réordonnancement + ajout/suppression en un appel). */
+function setlist_items_put(string $id): never
+{
+    Auth::requireMember();
+    Auth::enforceCsrf();
+    require_setlist($id);
+    $items = read_json()['items'] ?? [];
+    if (!is_array($items)) {
+        $items = [];
+    }
+    $pdo = db();
+    try {
+        $pdo->beginTransaction();
+        $pdo->prepare('DELETE FROM setlist_items WHERE setlist_id = ?')->execute([$id]);
+        $ins = $pdo->prepare(
+            'INSERT INTO setlist_items
+             (id, setlist_id, position, type, song_id, label, est_duration_sec, souffleur_text, souffleur_mood)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        );
+        $pos = 0;
+        foreach ($items as $it) {
+            if (!is_array($it)) {
+                continue;
+            }
+            $s = sanitize_setlist_item($it);
+            $ins->execute([
+                uuidv4(), $id, $pos++, $s['type'], $s['song_id'],
+                $s['label'], $s['est_duration_sec'], $s['souffleur_text'], $s['souffleur_mood'],
+            ]);
+        }
+        $pdo->prepare('UPDATE setlists SET updated_at = NOW() WHERE id = ?')->execute([$id]);
+        $pdo->commit();
+    } catch (Throwable $e) {
+        $pdo->rollBack();
+        throw $e;
+    }
+    json_response(['ok' => true]);
+}
+
+function setlist_share_create(string $id): never
+{
+    Auth::requireMember();
+    Auth::enforceCsrf();
+    require_setlist($id);
+    $token = bin2hex(random_bytes(16));
+    db()->prepare('UPDATE setlists SET share_token = ? WHERE id = ? AND group_id = ?')
+        ->execute([$token, $id, group_id()]);
+    json_response(['token' => $token]);
+}
+
+function setlist_share_delete(string $id): never
+{
+    Auth::requireMember();
+    Auth::enforceCsrf();
+    db()->prepare('UPDATE setlists SET share_token = NULL WHERE id = ? AND group_id = ?')
+        ->execute([$id, group_id()]);
+    json_response(['ok' => true]);
+}
+
+/** Accès PUBLIC en lecture seule via token (aucune authentification). */
+function share_get(string $token): never
+{
+    $stmt = db()->prepare('SELECT id, name, target_duration_min FROM setlists WHERE share_token = ?');
+    $stmt->execute([$token]);
+    $sl = $stmt->fetch();
+    if (!$sl) {
+        json_response(['error' => 'not_found'], 404);
+    }
+    json_response([
+        'name' => $sl['name'],
+        'target_duration_min' => $sl['target_duration_min'],
+        'items' => setlist_items_with_songs($sl['id']),
+    ]);
+}
+
+// ---------------------------------------------------------------------------
 // Routage
 // ---------------------------------------------------------------------------
 
@@ -503,6 +707,17 @@ $routes = [
     ['POST',   '#^/songs/import$#',             'songs_import'],
     ['PATCH',  '#^/songs/([^/]+)$#',            'songs_update'],
     ['DELETE', '#^/songs/([^/]+)$#',            'songs_delete'],
+
+    ['GET',    '#^/setlists$#',                 'setlists_list'],
+    ['POST',   '#^/setlists$#',                 'setlists_create'],
+    ['GET',    '#^/setlists/([^/]+)$#',         'setlist_get'],
+    ['PATCH',  '#^/setlists/([^/]+)$#',         'setlist_update'],
+    ['DELETE', '#^/setlists/([^/]+)$#',         'setlist_delete'],
+    ['PUT',    '#^/setlists/([^/]+)/items$#',   'setlist_items_put'],
+    ['POST',   '#^/setlists/([^/]+)/share$#',   'setlist_share_create'],
+    ['DELETE', '#^/setlists/([^/]+)/share$#',   'setlist_share_delete'],
+
+    ['GET',    '#^/share/([^/]+)$#',            'share_get'],
 ];
 
 try {

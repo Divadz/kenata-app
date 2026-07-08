@@ -50,3 +50,40 @@ export interface Song {
   roles?: string;
   watch?: string;
 }
+
+// --- Lot 2 : Setlists ---
+
+export type SetlistItemType = 'song' | 'free' | 'souffleur';
+
+export interface SetlistItem {
+  type: SetlistItemType;
+  song_id?: string | null;
+  label?: string | null;
+  est_duration_sec?: number | null;
+  souffleur_text?: string | null;
+  souffleur_mood?: string | null;
+  // Données morceau enrichies (renvoyées par le serveur, lecture seule).
+  song_title?: string | null;
+  song_artist?: string | null;
+  song_duration?: number | null;
+  song_tuning?: string | null;
+  song_key?: string | null;
+  song_bpm?: number | null;
+}
+
+export interface SetlistSummary {
+  id: string;
+  name: string;
+  target_duration_min: number | null;
+  share_token: string | null;
+  item_count: number;
+  total_sec: number;
+}
+
+export interface SetlistDetail {
+  id: string;
+  name: string;
+  target_duration_min: number | null;
+  share_token: string | null;
+  items: SetlistItem[];
+}
