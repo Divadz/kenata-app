@@ -451,7 +451,7 @@ export function ConcertEditor() {
                     )
                   }
                 >
-                  {on ? '☑' : '☐'} {g.label}
+                  {g.label}
                 </button>
               );
             })}

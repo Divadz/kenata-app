@@ -88,7 +88,7 @@ function GearInventory() {
                 aria-pressed={it.default_checked}
                 onClick={() => updateGearItem(it.id, { default_checked: !it.default_checked }).then(reload)}
               >
-                {it.default_checked ? '☑' : '☐'} {it.label}
+                {it.label}
               </button>
               <button
                 type="button"
@@ -103,7 +103,7 @@ function GearInventory() {
         </div>
       )}
 
-      <div className="row">
+      <div className="row" style={{ marginTop: '0.85rem' }}>
         <input
           aria-label="Nouvel élément de matos"
           placeholder="Ajouter un élément (Diffu, lights, Caisson…)"

@@ -301,25 +301,55 @@ code { font-family: var(--mono); font-size: 0.85em; color: var(--cyan); }
 /* Champ extensible (contacts : 3 champs remplissant la largeur) */
 .grow { flex: 1; min-width: 120px; }
 
-/* Chips matos (cochables) */
-.chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+/* Chips matos (cochables) — bouton de console avec LED */
+.chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.5rem;
   background: var(--panel-2);
   color: var(--muted);
   border: 1px solid var(--line);
   border-radius: 999px;
-  padding: 0.3rem 0.75rem;
+  padding: 0.4rem 0.85rem;
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s, box-shadow 0.15s;
 }
-.chip.on { background: var(--amber); color: var(--amber-ink); border-color: var(--amber); }
+/* LED : éteinte par défaut, allumée ambre quand coché */
+.chip::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--line);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+  transition: background 0.15s, box-shadow 0.15s;
+}
+.chip:hover { color: var(--text); border-color: #4a4250; }
+.chip.on {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--amber) 55%, var(--line));
+  background: color-mix(in srgb, var(--amber) 14%, var(--panel-2));
+}
+.chip.on::before {
+  background: var(--amber);
+  box-shadow: 0 0 7px color-mix(in srgb, var(--amber) 75%, transparent);
+}
 .chip-label { background: none; border: 0; color: inherit; cursor: pointer; font: inherit; padding: 0; }
-.chip-x { background: none; border: 0; color: inherit; cursor: pointer; font-size: 1.05rem; line-height: 1; opacity: 0.7; }
-.chip-x:hover { opacity: 1; }
+.chip-x {
+  background: none;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  opacity: 0.6;
+  padding: 0 0 0 0.1rem;
+}
+.chip-x:hover { opacity: 1; color: var(--danger); }
 
 /* ---- Mouvement réduit ---- */
 @media (prefers-reduced-motion: reduce) {
