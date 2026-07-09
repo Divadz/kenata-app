@@ -186,11 +186,51 @@ function auth_me(): never
     if ($user === null) {
         json_response(['user' => null, 'member' => null]);
     }
+    $def = db()->prepare('SELECT concert_section_order FROM app_group WHERE id = ?');
+    $def->execute([group_id()]);
+    $defRow = $def->fetch();
+    $mine = db()->prepare('SELECT concert_section_order FROM memberships WHERE group_id = ? AND user_id = ?');
+    $mine->execute([group_id(), $user['id']]);
+    $mineRow = $mine->fetch();
+    $decode = fn ($v) => $v !== null && $v !== false ? json_decode($v, true) : null;
+
     json_response([
         'user'   => ['email' => $user['email'], 'name' => $user['name']],
         'member' => Auth::member(),
         'csrf'   => Auth::csrfToken(),
+        'section_order' => [
+            'default' => $defRow ? $decode($defRow['concert_section_order']) : null,
+            'mine'    => $mineRow ? $decode($mineRow['concert_section_order']) : null,
+        ],
     ]);
+}
+
+function group_section_order_update(): never
+{
+    $m = Auth::requireMember();
+    if ($m['role'] !== 'owner') {
+        json_response(['error' => 'forbidden'], 403);
+    }
+    Auth::enforceCsrf();
+    ensure_group();
+    $order = read_json()['order'] ?? null;
+    db()->prepare('UPDATE app_group SET concert_section_order = ? WHERE id = ?')
+        ->execute([is_array($order) ? json_encode(array_values($order)) : null, group_id()]);
+    json_response(['ok' => true]);
+}
+
+function me_section_order_update(): never
+{
+    $u = Auth::user();
+    if ($u === null) {
+        json_response(['error' => 'unauthorized'], 401);
+    }
+    Auth::requireMember();
+    Auth::enforceCsrf();
+    $order = read_json()['order'] ?? null;
+    db()->prepare('UPDATE memberships SET concert_section_order = ? WHERE group_id = ? AND user_id = ?')
+        ->execute([is_array($order) ? json_encode(array_values($order)) : null, group_id(), $u['id']]);
+    json_response(['ok' => true]);
 }
 
 function auth_logout(): never
@@ -702,6 +742,7 @@ function present_concert(array $row): array
         $row[$j] = isset($row[$j]) && $row[$j] !== null ? json_decode($row[$j], true) : null;
     }
     $row['on_site'] = (bool) $row['on_site'];
+    $row['poster_is_link'] = (bool) $row['poster_is_link'];
     $row['target_duration_min'] = $row['target_duration_min'] !== null ? (int) $row['target_duration_min'] : null;
     return $row;
 }
@@ -723,6 +764,9 @@ function sanitize_concert(array $b): array
     }
     if (array_key_exists('on_site', $b)) {
         $out['on_site'] = !empty($b['on_site']) ? 1 : 0;
+    }
+    if (array_key_exists('poster_is_link', $b)) {
+        $out['poster_is_link'] = !empty($b['poster_is_link']) ? 1 : 0;
     }
     if (array_key_exists('visibility', $b)) {
         $out['visibility'] = ($b['visibility'] ?? '') === 'public' ? 'public' : 'private';
@@ -835,13 +879,13 @@ function concert_duplicate(string $id): never
     $new = uuidv4();
     db()->prepare(
         'INSERT INTO concerts
-         (id, group_id, date, venue_name, poster_url, target_duration_min, on_site, setlist_id,
+         (id, group_id, date, venue_name, poster_url, poster_is_link, target_duration_min, on_site, setlist_id,
           tech_sheet_url, address, maps_url, parking, greenroom, catering, fee, lodging,
           visibility, notes, contacts, ticket_links, roadmap, gear_checklist)
-         VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+         VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     )->execute([
         $new, group_id(), trim(($row['venue_name'] ?? '') . ' (copie)'),
-        $row['poster_url'], $row['target_duration_min'], $row['on_site'], $row['setlist_id'],
+        $row['poster_url'], $row['poster_is_link'], $row['target_duration_min'], $row['on_site'], $row['setlist_id'],
         $row['tech_sheet_url'], $row['address'], $row['maps_url'], $row['parking'], $row['greenroom'],
         $row['catering'], $row['fee'], $row['lodging'], $row['visibility'], $row['notes'],
         $row['contacts'], $row['ticket_links'], $row['roadmap'], $row['gear_checklist'],
@@ -934,6 +978,8 @@ $routes = [
     ['GET',    '#^/auth/dev-login$#',           'auth_dev_login'],
     ['GET',    '#^/auth/me$#',                  'auth_me'],
     ['POST',   '#^/auth/logout$#',              'auth_logout'],
+    ['PATCH',  '#^/group/section-order$#',      'group_section_order_update'],
+    ['PATCH',  '#^/me/section-order$#',         'me_section_order_update'],
 
     ['GET',    '#^/group$#',                    'group_get'],
     ['PATCH',  '#^/group$#',                    'group_update'],

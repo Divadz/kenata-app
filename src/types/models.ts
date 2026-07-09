@@ -128,6 +128,7 @@ export interface ConcertSummary {
 
 export interface ConcertDetail extends ConcertSummary {
   poster_url: string | null;
+  poster_is_link: boolean;
   on_site: boolean;
   tech_sheet_url: string | null;
   address: string | null;

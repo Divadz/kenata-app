@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS app_group (
   logo           VARCHAR(1024) NULL,
   color_primary  VARCHAR(16)  NULL,
   onboarding_pct INT          NOT NULL DEFAULT 0,
+  concert_section_order JSON   NULL,
   created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -35,6 +36,7 @@ CREATE TABLE IF NOT EXISTS memberships (
   role               ENUM('owner','admin','member') NOT NULL DEFAULT 'member',
   profile_name       VARCHAR(255) NULL,
   profile_instrument VARCHAR(255) NULL,
+  concert_section_order JSON      NULL,
   joined_at          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uniq_group_user (group_id, user_id),
@@ -152,6 +154,7 @@ CREATE TABLE IF NOT EXISTS concerts (
   date                DATE         NULL,
   venue_name          VARCHAR(255) NULL,
   poster_url          VARCHAR(1024) NULL,
+  poster_is_link      TINYINT(1)   NOT NULL DEFAULT 0,
   target_duration_min INT          NULL,
   on_site             TINYINT(1)   NOT NULL DEFAULT 0,
   setlist_id          CHAR(36)     NULL,

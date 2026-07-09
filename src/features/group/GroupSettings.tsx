@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { api } from '../../api/client';
 import { useAuth } from '../../auth/AuthProvider';
+import { reconcileOrder, SECTION_LABELS, type SectionKey } from '../concerts/sections';
 import {
   createGearItem,
   deleteGearItem,
@@ -55,7 +57,77 @@ export function GroupSettings() {
       </div>
 
       <GearInventory />
+      <SectionOrderSettings />
     </section>
+  );
+}
+
+function SectionOrderSettings() {
+  const { member, sectionOrderRaw, refresh } = useAuth();
+  const isOwner = member?.role === 'owner';
+  const [order, setOrder] = useState<SectionKey[]>(
+    reconcileOrder(sectionOrderRaw.mine ?? sectionOrderRaw.default)
+  );
+
+  useEffect(() => {
+    setOrder(reconcileOrder(sectionOrderRaw.mine ?? sectionOrderRaw.default));
+  }, [sectionOrderRaw]);
+
+  const customized = !isOwner && sectionOrderRaw.mine != null;
+
+  async function persist(next: SectionKey[]) {
+    setOrder(next);
+    const path = isOwner ? '/group/section-order' : '/me/section-order';
+    await api(path, { method: 'PATCH', body: { order: next } });
+    await refresh();
+  }
+  function move(i: number, dir: -1 | 1) {
+    const j = i + dir;
+    if (j < 0 || j >= order.length) return;
+    const next = [...order];
+    [next[i], next[j]] = [next[j], next[i]];
+    void persist(next);
+  }
+  async function reset() {
+    await api('/me/section-order', { method: 'PATCH', body: { order: null } });
+    await refresh();
+  }
+
+  return (
+    <div className="card form full">
+      <h3>Ordre des sections du concert</h3>
+      <p className="muted small">
+        « Essentiel » reste toujours en premier.{' '}
+        {isOwner
+          ? "Tu définis l'ordre par défaut du groupe (appliqué aux membres qui n'ont pas personnalisé)."
+          : customized
+            ? 'Tu utilises ton ordre personnalisé.'
+            : "Tu suis l'ordre par défaut du groupe."}
+      </p>
+      <ol className="setlist full">
+        {order.map((k, i) => (
+          <li key={k}>
+            <div className="sl-item">
+              <span className="sl-num mono">{i + 1}</span>
+              <div className="sl-body">{SECTION_LABELS[k]}</div>
+              <span className="sl-actions">
+                <button className="btn small" aria-label="Monter" onClick={() => move(i, -1)}>
+                  ↑
+                </button>
+                <button className="btn small" aria-label="Descendre" onClick={() => move(i, 1)}>
+                  ↓
+                </button>
+              </span>
+            </div>
+          </li>
+        ))}
+      </ol>
+      {customized && (
+        <button className="btn small" onClick={reset}>
+          Réinitialiser (suivre le groupe)
+        </button>
+      )}
+    </div>
   );
 }
 
