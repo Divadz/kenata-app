@@ -35,6 +35,7 @@ export function ConcertEditor() {
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [posterError, setPosterError] = useState(false);
   const cRef = useRef<ConcertDetail | null>(null);
   cRef.current = c;
 
@@ -238,14 +239,26 @@ export function ConcertEditor() {
             </select>
           </label>
         </div>
-        {c.poster_url &&
-          (c.poster_is_link ? (
-            <a className="btn small" href={c.poster_url} target="_blank" rel="noreferrer">
-              🔗 Ouvrir l'affiche
-            </a>
-          ) : (
-            <img src={c.poster_url} alt="Affiche du concert" style={{ maxWidth: '220px', borderRadius: 8 }} />
-          ))}
+        {c.poster_url && (
+          <div className="stack" style={{ gap: '0.4rem', alignItems: 'flex-start' }}>
+            {/* L'affiche s'affiche dans tous les cas (image ou lien). */}
+            <img
+              src={c.poster_url}
+              alt="Affiche du concert"
+              onError={() => setPosterError(true)}
+              onLoad={() => setPosterError(false)}
+              style={{ maxWidth: '220px', borderRadius: 8, display: posterError ? 'none' : 'block' }}
+            />
+            {(c.poster_is_link || posterError) && (
+              <a className="btn small" href={c.poster_url} target="_blank" rel="noreferrer">
+                🔗 Ouvrir l'affiche
+              </a>
+            )}
+            {posterError && (
+              <span className="muted small">Aperçu indisponible — utilise le bouton pour ouvrir le lien.</span>
+            )}
+          </div>
+        )}
       </div>
     ),
 
