@@ -7,7 +7,6 @@ import type {
   RoadmapItem,
   TicketLink,
 } from '../../types/models';
-import { formatHM } from '../../utils/duration';
 import { DurationSelect } from '../../components/DurationSelect';
 import { useAuth } from '../../auth/AuthProvider';
 import { useSetlists } from '../setlists/useSetlists';
@@ -88,18 +87,6 @@ export function ConcertEditor() {
   const checkedGear = c.gear_checklist ?? [];
   const checkedLabels = gearItems.filter((g) => checkedGear.includes(g.id)).map((g) => g.label);
 
-  // Durée : comparaison setlist vs cible
-  const selected = setlists.find((s) => s.id === c.setlist_id);
-  const setlistSec = selected ? Number(selected.total_sec) || 0 : 0;
-  const targetSec = (c.target_duration_min ?? 0) * 60;
-  const durState = !targetSec || !setlistSec
-    ? ''
-    : setlistSec > targetSec * 1.05
-      ? 'over'
-      : setlistSec < targetSec * 0.9
-        ? 'under'
-        : 'ok';
-
   const riderText = encodeURIComponent(`Rider ${c.venue_name || ''} : ${c.tech_sheet_url || ''}`);
   const orgEmail = contacts.org?.email;
   const mapsHref = c.maps_url
@@ -176,15 +163,6 @@ export function ConcertEditor() {
         </div>
       </div>
       <p className="muted small">{countdownLabel(c.date)}</p>
-      {selected && (
-        <p className={`small ${durState === 'over' || durState === 'under' ? 'warn' : 'muted'}`}>
-          Setlist : <span className="mono">{formatHM(setlistSec) || '00h00'}</span>
-          {targetSec ? ` / ${formatHM(targetSec)}` : ''}
-          {durState === 'over' && ' · dépasse le créneau'}
-          {durState === 'under' && ' · plus court que le créneau'}
-          {durState === 'ok' && ' · dans le créneau ✓'}
-        </p>
-      )}
       {/* Rappels */}
       <p className="small">
         <span className="muted">Cachet :</span>{' '}
