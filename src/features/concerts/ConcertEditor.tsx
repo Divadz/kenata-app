@@ -180,13 +180,23 @@ export function ConcertEditor() {
       )}
       {/* Rappels */}
       <p className="small">
-        <span className="muted">Cachet :</span> {c.fee ? <strong>{c.fee}</strong> : <span className="muted">—</span>}
-        {'  ·  '}
-        <span className="muted">Matos :</span>{' '}
-        {checkedLabels.length
-          ? `${checkedLabels.length} coché(s) — ${checkedLabels.join(', ')}`
-          : <span className="muted">aucun</span>}
+        <span className="muted">Cachet :</span>{' '}
+        {c.fee ? <strong>{c.fee}</strong> : <span className="muted">—</span>}
       </p>
+      <div className="row" style={{ gap: '0.4rem' }}>
+        <span className="muted small">Matos :</span>
+        {checkedLabels.length ? (
+          <div className="chips">
+            {checkedLabels.map((l) => (
+              <span key={l} className="chip on ro">
+                {l}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <span className="muted small">aucun</span>
+        )}
+      </div>
     </div>
   );
 

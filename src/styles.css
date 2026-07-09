@@ -350,6 +350,8 @@ code { font-family: var(--mono); font-size: 0.85em; color: var(--cyan); }
   padding: 0 0 0 0.1rem;
 }
 .chip-x:hover { opacity: 1; color: var(--danger); }
+/* Chip en lecture seule (rappel dans Essentiel) */
+.chip.ro { cursor: default; }
 
 /* ---- Mouvement réduit ---- */
 @media (prefers-reduced-motion: reduce) {
