@@ -32,7 +32,7 @@ export function ConcertsPage() {
       ) : concerts.length === 0 ? (
         <p className="muted">Aucun concert. Ajoute ta première date : salle, durée cible, setlist.</p>
       ) : (
-        <div className="cards full">
+        <div className="cards cards-3 full">
           {concerts.map((c) => (
             <Link key={c.id} className="card link concert-card" to={`/concerts/${c.id}`}>
               <div className="row between">
