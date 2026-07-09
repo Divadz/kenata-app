@@ -353,6 +353,23 @@ code { font-family: var(--mono); font-size: 0.85em; color: var(--cyan); }
 /* Chip en lecture seule (rappel dans Essentiel) */
 .chip.ro { cursor: default; }
 
+/* Stepper de durée */
+.stepper { display: inline-flex; align-items: center; gap: 0.4rem; }
+.stepper .btn.small {
+  width: 2rem;
+  padding: 0.3rem 0;
+  text-align: center;
+  font-size: 1rem;
+  line-height: 1;
+}
+.stepper-val {
+  min-width: 4rem;
+  text-align: center;
+  font-size: 1.05rem;
+  color: var(--cyan);
+  letter-spacing: 0.02em;
+}
+
 /* ---- Mouvement réduit ---- */
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
