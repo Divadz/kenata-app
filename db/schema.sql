@@ -132,6 +132,52 @@ CREATE TABLE IF NOT EXISTS setlist_items (
   CONSTRAINT fk_item_song    FOREIGN KEY (song_id)    REFERENCES songs(id)    ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Modèles de matériel réutilisables (Lot 3 — Matos)
+CREATE TABLE IF NOT EXISTS gear_templates (
+  id         CHAR(36)     NOT NULL,
+  group_id   VARCHAR(64)  NOT NULL,
+  name       VARCHAR(255) NOT NULL,
+  items      JSON         NULL,
+  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_group (group_id),
+  CONSTRAINT fk_gear_group FOREIGN KEY (group_id) REFERENCES app_group(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Concerts (Lot 3). Sous-listes variables (contacts, billetterie, feuille de
+-- route, checklist matos) stockées en JSON ; setlist reliée par clé.
+CREATE TABLE IF NOT EXISTS concerts (
+  id                  CHAR(36)     NOT NULL,
+  group_id            VARCHAR(64)  NOT NULL,
+  date                DATE         NULL,
+  venue_name          VARCHAR(255) NULL,
+  poster_url          VARCHAR(1024) NULL,
+  target_duration_min INT          NULL,
+  on_site             TINYINT(1)   NOT NULL DEFAULT 0,
+  setlist_id          CHAR(36)     NULL,
+  tech_sheet_url      VARCHAR(1024) NULL,
+  address             VARCHAR(512) NULL,
+  maps_url            VARCHAR(1024) NULL,
+  parking             VARCHAR(512) NULL,
+  greenroom           VARCHAR(512) NULL,
+  catering            VARCHAR(512) NULL,
+  fee                 VARCHAR(255) NULL,
+  lodging             VARCHAR(512) NULL,
+  visibility          ENUM('public','private') NOT NULL DEFAULT 'private',
+  notes               TEXT         NULL,
+  contacts            JSON         NULL,
+  ticket_links        JSON         NULL,
+  roadmap             JSON         NULL,
+  gear_checklist      JSON         NULL,
+  created_at          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_group (group_id),
+  KEY idx_setlist (setlist_id),
+  CONSTRAINT fk_concert_group   FOREIGN KEY (group_id)   REFERENCES app_group(id) ON DELETE CASCADE,
+  CONSTRAINT fk_concert_setlist FOREIGN KEY (setlist_id) REFERENCES setlists(id)  ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Amorçage du groupe unique (renseigne l'id depuis la config : ex. 'kenata').
 INSERT INTO app_group (id, name) VALUES ('kenata', 'Kenata')
   ON DUPLICATE KEY UPDATE name = name;

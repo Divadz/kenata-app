@@ -7,6 +7,9 @@ import { RepertoirePage } from './features/repertoire/RepertoirePage';
 import { SetlistsPage } from './features/setlists/SetlistsPage';
 import { SetlistEditor } from './features/setlists/SetlistEditor';
 import { SharedSetlist } from './features/setlists/SharedSetlist';
+import { ConcertsPage } from './features/concerts/ConcertsPage';
+import { ConcertEditor } from './features/concerts/ConcertEditor';
+import { MatosPage } from './features/matos/MatosPage';
 import { MembersPage } from './features/members/MembersPage';
 import { GroupSettings } from './features/group/GroupSettings';
 
@@ -20,6 +23,9 @@ function AuthedApp() {
           <Route path="repertoire" element={<RepertoirePage />} />
           <Route path="setlists" element={<SetlistsPage />} />
           <Route path="setlists/:id" element={<SetlistEditor />} />
+          <Route path="concerts" element={<ConcertsPage />} />
+          <Route path="concerts/:id" element={<ConcertEditor />} />
+          <Route path="matos" element={<MatosPage />} />
           <Route path="members" element={<MembersPage />} />
           <Route path="settings" element={<GroupSettings />} />
         </Route>

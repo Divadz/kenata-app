@@ -674,6 +674,245 @@ function share_get(string $token): never
 }
 
 // ---------------------------------------------------------------------------
+// Concerts
+// ---------------------------------------------------------------------------
+
+const CONCERT_JSON = ['contacts', 'ticket_links', 'roadmap', 'gear_checklist'];
+const CONCERT_STRS = [
+    'venue_name' => 255, 'poster_url' => 1024, 'tech_sheet_url' => 1024, 'address' => 512,
+    'maps_url' => 1024, 'parking' => 512, 'greenroom' => 512, 'catering' => 512,
+    'fee' => 255, 'lodging' => 512,
+];
+
+function require_concert(string $id): array
+{
+    $stmt = db()->prepare('SELECT * FROM concerts WHERE id = ? AND group_id = ?');
+    $stmt->execute([$id, group_id()]);
+    $row = $stmt->fetch();
+    if (!$row) {
+        json_response(['error' => 'not_found'], 404);
+    }
+    return $row;
+}
+
+/** Décode les colonnes JSON et normalise les types pour la sortie. */
+function present_concert(array $row): array
+{
+    foreach (CONCERT_JSON as $j) {
+        $row[$j] = isset($row[$j]) && $row[$j] !== null ? json_decode($row[$j], true) : null;
+    }
+    $row['on_site'] = (bool) $row['on_site'];
+    $row['target_duration_min'] = $row['target_duration_min'] !== null ? (int) $row['target_duration_min'] : null;
+    return $row;
+}
+
+function sanitize_concert(array $b): array
+{
+    $out = [];
+    foreach (CONCERT_STRS as $k => $max) {
+        if (array_key_exists($k, $b)) {
+            $out[$k] = nullable_str($b[$k], $max);
+        }
+    }
+    if (array_key_exists('date', $b)) {
+        $d = trim((string) ($b['date'] ?? ''));
+        $out['date'] = preg_match('/^\d{4}-\d{2}-\d{2}$/', $d) ? $d : null;
+    }
+    if (array_key_exists('target_duration_min', $b)) {
+        $out['target_duration_min'] = nullable_int($b['target_duration_min']);
+    }
+    if (array_key_exists('on_site', $b)) {
+        $out['on_site'] = !empty($b['on_site']) ? 1 : 0;
+    }
+    if (array_key_exists('visibility', $b)) {
+        $out['visibility'] = ($b['visibility'] ?? '') === 'public' ? 'public' : 'private';
+    }
+    if (array_key_exists('notes', $b)) {
+        $n = trim((string) ($b['notes'] ?? ''));
+        $out['notes'] = $n === '' ? null : $n;
+    }
+    foreach (CONCERT_JSON as $j) {
+        if (array_key_exists($j, $b)) {
+            $out[$j] = $b[$j] === null ? null : json_encode($b[$j], JSON_UNESCAPED_UNICODE);
+        }
+    }
+    return $out;
+}
+
+function concerts_list(): never
+{
+    Auth::requireMember();
+    $stmt = db()->prepare(
+        "SELECT c.id, c.date, c.venue_name, c.visibility, c.target_duration_min, c.setlist_id,
+            s.name AS setlist_name,
+            (SELECT COALESCE(SUM(CASE WHEN i.type = 'song' THEN so.duration_sec ELSE i.est_duration_sec END), 0)
+               FROM setlist_items i LEFT JOIN songs so ON so.id = i.song_id
+               WHERE i.setlist_id = c.setlist_id) AS setlist_sec
+         FROM concerts c LEFT JOIN setlists s ON s.id = c.setlist_id
+         WHERE c.group_id = ? ORDER BY c.date IS NULL, c.date"
+    );
+    $stmt->execute([group_id()]);
+    json_response($stmt->fetchAll());
+}
+
+function concerts_create(): never
+{
+    Auth::requireMember();
+    Auth::enforceCsrf();
+    $b = read_json();
+    $id = uuidv4();
+    $date = null;
+    if (isset($b['date']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $b['date'])) {
+        $date = $b['date'];
+    }
+    db()->prepare('INSERT INTO concerts (id, group_id, date, venue_name) VALUES (?, ?, ?, ?)')
+        ->execute([$id, group_id(), $date, nullable_str($b['venue_name'] ?? '', 255)]);
+    json_response(['id' => $id], 201);
+}
+
+function concert_get(string $id): never
+{
+    Auth::requireMember();
+    $row = present_concert(require_concert($id));
+    if ($row['setlist_id']) {
+        $stmt = db()->prepare(
+            "SELECT s.name,
+                (SELECT COALESCE(SUM(CASE WHEN i.type = 'song' THEN so.duration_sec ELSE i.est_duration_sec END), 0)
+                   FROM setlist_items i LEFT JOIN songs so ON so.id = i.song_id WHERE i.setlist_id = s.id) AS sec
+             FROM setlists s WHERE s.id = ?"
+        );
+        $stmt->execute([$row['setlist_id']]);
+        $sl = $stmt->fetch();
+        $row['setlist_name'] = $sl['name'] ?? null;
+        $row['setlist_sec'] = $sl ? (int) $sl['sec'] : 0;
+    }
+    json_response($row);
+}
+
+function concert_update(string $id): never
+{
+    Auth::requireMember();
+    Auth::enforceCsrf();
+    require_concert($id);
+    $b = read_json();
+    $fields = sanitize_concert($b);
+    // Un setlist_id fourni doit appartenir au groupe, sinon on le met à null.
+    if (array_key_exists('setlist_id', $b)) {
+        $sid = $b['setlist_id'];
+        if (is_string($sid) && $sid !== '') {
+            $chk = db()->prepare('SELECT id FROM setlists WHERE id = ? AND group_id = ?');
+            $chk->execute([$sid, group_id()]);
+            $fields['setlist_id'] = $chk->fetch() ? $sid : null;
+        } else {
+            $fields['setlist_id'] = null;
+        }
+    }
+    if ($fields) {
+        $set = implode(', ', array_map(fn ($c) => "$c = :$c", array_keys($fields)));
+        $stmt = db()->prepare("UPDATE concerts SET $set, updated_at = NOW() WHERE id = :id AND group_id = :gid");
+        $stmt->execute($fields + ['id' => $id, 'gid' => group_id()]);
+    }
+    json_response(['ok' => true]);
+}
+
+function concert_delete(string $id): never
+{
+    Auth::requireMember();
+    Auth::enforceCsrf();
+    db()->prepare('DELETE FROM concerts WHERE id = ? AND group_id = ?')->execute([$id, group_id()]);
+    json_response(['ok' => true]);
+}
+
+function concert_duplicate(string $id): never
+{
+    Auth::requireMember();
+    Auth::enforceCsrf();
+    $row = require_concert($id);
+    $new = uuidv4();
+    db()->prepare(
+        'INSERT INTO concerts
+         (id, group_id, date, venue_name, poster_url, target_duration_min, on_site, setlist_id,
+          tech_sheet_url, address, maps_url, parking, greenroom, catering, fee, lodging,
+          visibility, notes, contacts, ticket_links, roadmap, gear_checklist)
+         VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    )->execute([
+        $new, group_id(), trim(($row['venue_name'] ?? '') . ' (copie)'),
+        $row['poster_url'], $row['target_duration_min'], $row['on_site'], $row['setlist_id'],
+        $row['tech_sheet_url'], $row['address'], $row['maps_url'], $row['parking'], $row['greenroom'],
+        $row['catering'], $row['fee'], $row['lodging'], $row['visibility'], $row['notes'],
+        $row['contacts'], $row['ticket_links'], $row['roadmap'], $row['gear_checklist'],
+    ]);
+    json_response(['id' => $new], 201);
+}
+
+// ---------------------------------------------------------------------------
+// Modèles de matériel (Matos)
+// ---------------------------------------------------------------------------
+
+function gear_templates_list(): never
+{
+    Auth::requireMember();
+    $stmt = db()->prepare('SELECT id, name, items FROM gear_templates WHERE group_id = ? ORDER BY name');
+    $stmt->execute([group_id()]);
+    $rows = array_map(function ($r) {
+        $r['items'] = $r['items'] !== null ? json_decode($r['items'], true) : [];
+        return $r;
+    }, $stmt->fetchAll());
+    json_response($rows);
+}
+
+function gear_templates_create(): never
+{
+    Auth::requireMember();
+    Auth::enforceCsrf();
+    $b = read_json();
+    $name = nullable_str($b['name'] ?? '', 255);
+    if ($name === null) {
+        json_response(['error' => 'name_required'], 422);
+    }
+    $id = uuidv4();
+    db()->prepare('INSERT INTO gear_templates (id, group_id, name, items) VALUES (?, ?, ?, ?)')
+        ->execute([$id, group_id(), $name, json_encode($b['items'] ?? [], JSON_UNESCAPED_UNICODE)]);
+    json_response(['id' => $id], 201);
+}
+
+function gear_template_update(string $id): never
+{
+    Auth::requireMember();
+    Auth::enforceCsrf();
+    $b = read_json();
+    $fields = [];
+    $params = [];
+    if (array_key_exists('name', $b)) {
+        $name = nullable_str($b['name'], 255);
+        if ($name === null) {
+            json_response(['error' => 'name_required'], 422);
+        }
+        $fields[] = 'name = ?';
+        $params[] = $name;
+    }
+    if (array_key_exists('items', $b)) {
+        $fields[] = 'items = ?';
+        $params[] = json_encode($b['items'] ?? [], JSON_UNESCAPED_UNICODE);
+    }
+    if ($fields) {
+        $params[] = $id;
+        $params[] = group_id();
+        db()->prepare('UPDATE gear_templates SET ' . implode(', ', $fields) . ' WHERE id = ? AND group_id = ?')
+            ->execute($params);
+    }
+    json_response(['ok' => true]);
+}
+
+function gear_template_delete(string $id): never
+{
+    Auth::requireMember();
+    Auth::enforceCsrf();
+    db()->prepare('DELETE FROM gear_templates WHERE id = ? AND group_id = ?')->execute([$id, group_id()]);
+    json_response(['ok' => true]);
+}
+
+// ---------------------------------------------------------------------------
 // Routage
 // ---------------------------------------------------------------------------
 
@@ -718,6 +957,18 @@ $routes = [
     ['DELETE', '#^/setlists/([^/]+)/share$#',   'setlist_share_delete'],
 
     ['GET',    '#^/share/([^/]+)$#',            'share_get'],
+
+    ['GET',    '#^/concerts$#',                 'concerts_list'],
+    ['POST',   '#^/concerts$#',                 'concerts_create'],
+    ['GET',    '#^/concerts/([^/]+)$#',         'concert_get'],
+    ['PATCH',  '#^/concerts/([^/]+)$#',         'concert_update'],
+    ['DELETE', '#^/concerts/([^/]+)$#',         'concert_delete'],
+    ['POST',   '#^/concerts/([^/]+)/duplicate$#', 'concert_duplicate'],
+
+    ['GET',    '#^/gear-templates$#',           'gear_templates_list'],
+    ['POST',   '#^/gear-templates$#',           'gear_templates_create'],
+    ['PATCH',  '#^/gear-templates/([^/]+)$#',   'gear_template_update'],
+    ['DELETE', '#^/gear-templates/([^/]+)$#',   'gear_template_delete'],
 ];
 
 try {

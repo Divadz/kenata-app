@@ -87,3 +87,67 @@ export interface SetlistDetail {
   share_token: string | null;
   items: SetlistItem[];
 }
+
+// --- Lot 3 : Concerts & Matos ---
+
+export interface ContactInfo {
+  name?: string;
+  phone?: string;
+  email?: string;
+}
+export interface ConcertContacts {
+  org?: ContactInfo;
+  sound?: ContactInfo;
+  light?: ContactInfo;
+}
+export interface TicketLink {
+  label?: string;
+  url?: string;
+}
+export interface RoadmapItem {
+  time?: string;
+  label?: string;
+}
+export interface GearCheckItem {
+  label?: string;
+  checked?: boolean;
+}
+
+export interface ConcertSummary {
+  id: string;
+  date: string | null;
+  venue_name: string | null;
+  visibility: 'public' | 'private';
+  target_duration_min: number | null;
+  setlist_id: string | null;
+  setlist_name?: string | null;
+  setlist_sec?: string | number | null;
+}
+
+export interface ConcertDetail extends ConcertSummary {
+  poster_url: string | null;
+  on_site: boolean;
+  tech_sheet_url: string | null;
+  address: string | null;
+  maps_url: string | null;
+  parking: string | null;
+  greenroom: string | null;
+  catering: string | null;
+  fee: string | null;
+  lodging: string | null;
+  notes: string | null;
+  contacts: ConcertContacts | null;
+  ticket_links: TicketLink[] | null;
+  roadmap: RoadmapItem[] | null;
+  gear_checklist: GearCheckItem[] | null;
+}
+
+export interface GearTemplateItem {
+  label?: string;
+  category?: string;
+}
+export interface GearTemplate {
+  id: string;
+  name: string;
+  items: GearTemplateItem[];
+}

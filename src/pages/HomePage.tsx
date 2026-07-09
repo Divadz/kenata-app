@@ -16,7 +16,12 @@ export function HomePage() {
         <Link className="card link" to="/setlists">
           Setlists
         </Link>
-        <div className="card muted">Concerts — à venir</div>
+        <Link className="card link" to="/concerts">
+          Concerts
+        </Link>
+        <Link className="card link" to="/matos">
+          Matos
+        </Link>
         <div className="card muted">Booking (CRM) — à venir</div>
       </div>
     </section>
