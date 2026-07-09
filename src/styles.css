@@ -301,6 +301,26 @@ code { font-family: var(--mono); font-size: 0.85em; color: var(--cyan); }
 /* Champ extensible (contacts : 3 champs remplissant la largeur) */
 .grow { flex: 1; min-width: 120px; }
 
+/* Chips matos (cochables) */
+.chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--panel-2);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.chip.on { background: var(--amber); color: var(--amber-ink); border-color: var(--amber); }
+.chip-label { background: none; border: 0; color: inherit; cursor: pointer; font: inherit; padding: 0; }
+.chip-x { background: none; border: 0; color: inherit; cursor: pointer; font-size: 1.05rem; line-height: 1; opacity: 0.7; }
+.chip-x:hover { opacity: 1; }
+
 /* ---- Mouvement réduit ---- */
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }

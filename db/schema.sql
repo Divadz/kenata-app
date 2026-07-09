@@ -132,16 +132,16 @@ CREATE TABLE IF NOT EXISTS setlist_items (
   CONSTRAINT fk_item_song    FOREIGN KEY (song_id)    REFERENCES songs(id)    ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Modèles de matériel réutilisables (Lot 3 — Matos)
-CREATE TABLE IF NOT EXISTS gear_templates (
-  id         CHAR(36)     NOT NULL,
-  group_id   VARCHAR(64)  NOT NULL,
-  name       VARCHAR(255) NOT NULL,
-  items      JSON         NULL,
-  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+-- Inventaire matos (Lot 3, simplifié) : éléments cochés par concert.
+CREATE TABLE IF NOT EXISTS gear_items (
+  id              CHAR(36)     NOT NULL,
+  group_id        VARCHAR(64)  NOT NULL,
+  label           VARCHAR(255) NOT NULL,
+  default_checked TINYINT(1)   NOT NULL DEFAULT 0,
+  created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_group (group_id),
-  CONSTRAINT fk_gear_group FOREIGN KEY (group_id) REFERENCES app_group(id) ON DELETE CASCADE
+  CONSTRAINT fk_gearitem_group FOREIGN KEY (group_id) REFERENCES app_group(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Concerts (Lot 3). Sous-listes variables (contacts, billetterie, feuille de

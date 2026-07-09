@@ -765,8 +765,12 @@ function concerts_create(): never
     if (isset($b['date']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $b['date'])) {
         $date = $b['date'];
     }
-    db()->prepare('INSERT INTO concerts (id, group_id, date, venue_name) VALUES (?, ?, ?, ?)')
-        ->execute([$id, group_id(), $date, nullable_str($b['venue_name'] ?? '', 255)]);
+    // Snapshot du matos coché par défaut à la création (figé pour ce concert).
+    $stmt = db()->prepare('SELECT id FROM gear_items WHERE group_id = ? AND default_checked = 1');
+    $stmt->execute([group_id()]);
+    $defaults = array_column($stmt->fetchAll(), 'id');
+    db()->prepare('INSERT INTO concerts (id, group_id, date, venue_name, gear_checklist) VALUES (?, ?, ?, ?, ?)')
+        ->execute([$id, group_id(), $date, nullable_str($b['venue_name'] ?? '', 255), json_encode($defaults)]);
     json_response(['id' => $id], 201);
 }
 
@@ -846,69 +850,69 @@ function concert_duplicate(string $id): never
 }
 
 // ---------------------------------------------------------------------------
-// Modèles de matériel (Matos)
+// Inventaire matos
 // ---------------------------------------------------------------------------
 
-function gear_templates_list(): never
+function gear_items_list(): never
 {
     Auth::requireMember();
-    $stmt = db()->prepare('SELECT id, name, items FROM gear_templates WHERE group_id = ? ORDER BY name');
+    $stmt = db()->prepare('SELECT id, label, default_checked FROM gear_items WHERE group_id = ? ORDER BY label');
     $stmt->execute([group_id()]);
     $rows = array_map(function ($r) {
-        $r['items'] = $r['items'] !== null ? json_decode($r['items'], true) : [];
+        $r['default_checked'] = (bool) $r['default_checked'];
         return $r;
     }, $stmt->fetchAll());
     json_response($rows);
 }
 
-function gear_templates_create(): never
+function gear_items_create(): never
 {
     Auth::requireMember();
     Auth::enforceCsrf();
     $b = read_json();
-    $name = nullable_str($b['name'] ?? '', 255);
-    if ($name === null) {
-        json_response(['error' => 'name_required'], 422);
+    $label = nullable_str($b['label'] ?? '', 255);
+    if ($label === null) {
+        json_response(['error' => 'label_required'], 422);
     }
     $id = uuidv4();
-    db()->prepare('INSERT INTO gear_templates (id, group_id, name, items) VALUES (?, ?, ?, ?)')
-        ->execute([$id, group_id(), $name, json_encode($b['items'] ?? [], JSON_UNESCAPED_UNICODE)]);
+    db()->prepare('INSERT INTO gear_items (id, group_id, label, default_checked) VALUES (?, ?, ?, ?)')
+        ->execute([$id, group_id(), $label, !empty($b['default_checked']) ? 1 : 0]);
     json_response(['id' => $id], 201);
 }
 
-function gear_template_update(string $id): never
+function gear_item_update(string $id): never
 {
     Auth::requireMember();
     Auth::enforceCsrf();
     $b = read_json();
     $fields = [];
     $params = [];
-    if (array_key_exists('name', $b)) {
-        $name = nullable_str($b['name'], 255);
-        if ($name === null) {
-            json_response(['error' => 'name_required'], 422);
+    if (array_key_exists('label', $b)) {
+        $label = nullable_str($b['label'], 255);
+        if ($label === null) {
+            json_response(['error' => 'label_required'], 422);
         }
-        $fields[] = 'name = ?';
-        $params[] = $name;
+        $fields[] = 'label = ?';
+        $params[] = $label;
     }
-    if (array_key_exists('items', $b)) {
-        $fields[] = 'items = ?';
-        $params[] = json_encode($b['items'] ?? [], JSON_UNESCAPED_UNICODE);
+    if (array_key_exists('default_checked', $b)) {
+        $fields[] = 'default_checked = ?';
+        $params[] = !empty($b['default_checked']) ? 1 : 0;
     }
     if ($fields) {
         $params[] = $id;
         $params[] = group_id();
-        db()->prepare('UPDATE gear_templates SET ' . implode(', ', $fields) . ' WHERE id = ? AND group_id = ?')
+        db()->prepare('UPDATE gear_items SET ' . implode(', ', $fields) . ' WHERE id = ? AND group_id = ?')
             ->execute($params);
     }
     json_response(['ok' => true]);
 }
 
-function gear_template_delete(string $id): never
+function gear_item_delete(string $id): never
 {
     Auth::requireMember();
     Auth::enforceCsrf();
-    db()->prepare('DELETE FROM gear_templates WHERE id = ? AND group_id = ?')->execute([$id, group_id()]);
+    db()->prepare('DELETE FROM gear_items WHERE id = ? AND group_id = ?')->execute([$id, group_id()]);
     json_response(['ok' => true]);
 }
 
@@ -965,10 +969,10 @@ $routes = [
     ['DELETE', '#^/concerts/([^/]+)$#',         'concert_delete'],
     ['POST',   '#^/concerts/([^/]+)/duplicate$#', 'concert_duplicate'],
 
-    ['GET',    '#^/gear-templates$#',           'gear_templates_list'],
-    ['POST',   '#^/gear-templates$#',           'gear_templates_create'],
-    ['PATCH',  '#^/gear-templates/([^/]+)$#',   'gear_template_update'],
-    ['DELETE', '#^/gear-templates/([^/]+)$#',   'gear_template_delete'],
+    ['GET',    '#^/gear-items$#',               'gear_items_list'],
+    ['POST',   '#^/gear-items$#',               'gear_items_create'],
+    ['PATCH',  '#^/gear-items/([^/]+)$#',       'gear_item_update'],
+    ['DELETE', '#^/gear-items/([^/]+)$#',       'gear_item_delete'],
 ];
 
 try {

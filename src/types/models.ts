@@ -108,9 +108,11 @@ export interface RoadmapItem {
   time?: string;
   label?: string;
 }
-export interface GearCheckItem {
-  label?: string;
-  checked?: boolean;
+/** Élément d'inventaire matos, coché par défaut ou non. */
+export interface GearItem {
+  id: string;
+  label: string;
+  default_checked: boolean;
 }
 
 export interface ConcertSummary {
@@ -139,15 +141,6 @@ export interface ConcertDetail extends ConcertSummary {
   contacts: ConcertContacts | null;
   ticket_links: TicketLink[] | null;
   roadmap: RoadmapItem[] | null;
-  gear_checklist: GearCheckItem[] | null;
-}
-
-export interface GearTemplateItem {
-  label?: string;
-  category?: string;
-}
-export interface GearTemplate {
-  id: string;
-  name: string;
-  items: GearTemplateItem[];
+  /** Ids des éléments matos cochés pour ce concert (figés à la création depuis les défauts). */
+  gear_checklist: string[] | null;
 }

@@ -4,13 +4,12 @@ import type {
   ConcertContacts,
   ConcertDetail,
   ContactInfo,
-  GearCheckItem,
   RoadmapItem,
   TicketLink,
 } from '../../types/models';
 import { formatDuration } from '../../utils/duration';
 import { useSetlists } from '../setlists/useSetlists';
-import { useGear } from '../matos/useGear';
+import { useGearItems } from '../gear/useGearItems';
 import { countdownLabel, deleteConcert, duplicateConcert, getConcert, updateConcert } from './useConcerts';
 
 type StrKey =
@@ -27,12 +26,11 @@ export function ConcertEditor() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const { setlists } = useSetlists();
-  const { templates } = useGear();
+  const { items: gearItems } = useGearItems();
 
   const [c, setC] = useState<ConcertDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState<string | null>(null);
-  const [loadTpl, setLoadTpl] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const cRef = useRef<ConcertDetail | null>(null);
   cRef.current = c;
@@ -84,7 +82,7 @@ export function ConcertEditor() {
 
   const tickets = c.ticket_links ?? [];
   const roadmap = c.roadmap ?? [];
-  const gear = c.gear_checklist ?? [];
+  const checkedGear = c.gear_checklist ?? [];
 
   // Durée : comparaison setlist vs cible
   const selected = setlists.find((s) => s.id === c.setlist_id);
@@ -429,53 +427,36 @@ export function ConcertEditor() {
         </button>
       </div>
 
-      {/* Checklist matos */}
+      {/* Checklist matos : chips cochables issues de l'inventaire */}
       <div className="card form full">
         <h3>Checklist matos</h3>
-        <ul className="list">
-          {gear.map((g: GearCheckItem, i) => (
-            <li key={i}>
-              <span>
-                <input
-                  type="checkbox"
-                  aria-label={`${g.label} chargé`}
-                  checked={!!g.checked}
-                  onChange={(e) => commitArr('gear_checklist', patchAt(gear, i, { checked: e.target.checked }))}
-                />{' '}
-                {g.label}
-              </span>
-              <button className="btn small" aria-label="Retirer" onClick={() => commitArr('gear_checklist', gear.filter((_, x) => x !== i))}>
-                ✕
-              </button>
-            </li>
-          ))}
-        </ul>
-        <div className="row">
-          <select aria-label="Charger un modèle" value={loadTpl} onChange={(e) => setLoadTpl(e.target.value)}>
-            <option value="">— Charger un modèle —</option>
-            {templates.map((tpl) => (
-              <option key={tpl.id} value={tpl.id}>
-                {tpl.name}
-              </option>
-            ))}
-          </select>
-          <button
-            className="btn small"
-            disabled={!loadTpl}
-            onClick={() => {
-              const tpl = templates.find((x) => x.id === loadTpl);
-              if (!tpl) return;
-              const added = (tpl.items ?? []).map((it) => ({ label: it.label, checked: false }));
-              commitArr('gear_checklist', [...gear, ...added]);
-              setLoadTpl('');
-            }}
-          >
-            Charger
-          </button>
-          <Link className="btn small" to="/matos">
-            Gérer les modèles
-          </Link>
-        </div>
+        {gearItems.length === 0 ? (
+          <p className="muted small">
+            Aucun élément. Ajoute ton matos dans <Link to="/settings">Réglages</Link>.
+          </p>
+        ) : (
+          <div className="chips">
+            {gearItems.map((g) => {
+              const on = checkedGear.includes(g.id);
+              return (
+                <button
+                  key={g.id}
+                  type="button"
+                  className={`chip ${on ? 'on' : ''}`}
+                  aria-pressed={on}
+                  onClick={() =>
+                    commitArr(
+                      'gear_checklist',
+                      on ? checkedGear.filter((x) => x !== g.id) : [...checkedGear, g.id]
+                    )
+                  }
+                >
+                  {on ? '☑' : '☐'} {g.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Notes */}
