@@ -743,6 +743,7 @@ function present_concert(array $row): array
     }
     $row['on_site'] = (bool) $row['on_site'];
     $row['poster_is_link'] = (bool) $row['poster_is_link'];
+    $row['fee_guso'] = (bool) $row['fee_guso'];
     $row['target_duration_min'] = $row['target_duration_min'] !== null ? (int) $row['target_duration_min'] : null;
     return $row;
 }
@@ -767,6 +768,9 @@ function sanitize_concert(array $b): array
     }
     if (array_key_exists('poster_is_link', $b)) {
         $out['poster_is_link'] = !empty($b['poster_is_link']) ? 1 : 0;
+    }
+    if (array_key_exists('fee_guso', $b)) {
+        $out['fee_guso'] = !empty($b['fee_guso']) ? 1 : 0;
     }
     if (array_key_exists('visibility', $b)) {
         $out['visibility'] = ($b['visibility'] ?? '') === 'public' ? 'public' : 'private';
@@ -880,14 +884,14 @@ function concert_duplicate(string $id): never
     db()->prepare(
         'INSERT INTO concerts
          (id, group_id, date, venue_name, poster_url, poster_is_link, target_duration_min, on_site, setlist_id,
-          tech_sheet_url, address, maps_url, parking, greenroom, catering, fee, lodging,
+          tech_sheet_url, address, maps_url, parking, greenroom, catering, fee, fee_guso, lodging,
           visibility, notes, contacts, ticket_links, roadmap, gear_checklist)
-         VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+         VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     )->execute([
         $new, group_id(), trim(($row['venue_name'] ?? '') . ' (copie)'),
         $row['poster_url'], $row['poster_is_link'], $row['target_duration_min'], $row['on_site'], $row['setlist_id'],
         $row['tech_sheet_url'], $row['address'], $row['maps_url'], $row['parking'], $row['greenroom'],
-        $row['catering'], $row['fee'], $row['lodging'], $row['visibility'], $row['notes'],
+        $row['catering'], $row['fee'], $row['fee_guso'], $row['lodging'], $row['visibility'], $row['notes'],
         $row['contacts'], $row['ticket_links'], $row['roadmap'], $row['gear_checklist'],
     ]);
     json_response(['id' => $new], 201);

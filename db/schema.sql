@@ -165,6 +165,7 @@ CREATE TABLE IF NOT EXISTS concerts (
   greenroom           VARCHAR(512) NULL,
   catering            VARCHAR(512) NULL,
   fee                 VARCHAR(255) NULL,
+  fee_guso            TINYINT(1)   NOT NULL DEFAULT 0,
   lodging             VARCHAR(512) NULL,
   visibility          ENUM('public','private') NOT NULL DEFAULT 'private',
   notes               TEXT         NULL,

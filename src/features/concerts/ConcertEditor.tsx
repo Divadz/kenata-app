@@ -182,6 +182,7 @@ export function ConcertEditor() {
       <p className="small">
         <span className="muted">Cachet :</span>{' '}
         {c.fee ? <strong>{c.fee}</strong> : <span className="muted">—</span>}
+        {c.fee_guso && <span className="badge">GUSO</span>}
       </p>
       <div className="row" style={{ gap: '0.4rem' }}>
         <span className="muted small">Matos :</span>
@@ -418,7 +419,20 @@ export function ConcertEditor() {
           </label>
           <label className="field">
             <span>Cachet</span>
-            <input placeholder="Montant / modalités" {...t('fee')} />
+            <div className="row">
+              <input className="grow" placeholder="Montant / modalités" {...t('fee')} />
+              <label className="row" style={{ gap: '0.3rem', whiteSpace: 'nowrap' }}>
+                <input
+                  type="checkbox"
+                  checked={c.fee_guso}
+                  onChange={(e) => {
+                    setField('fee_guso', e.target.checked);
+                    save({ fee_guso: e.target.checked });
+                  }}
+                />{' '}
+                GUSO
+              </label>
+            </div>
           </label>
           <label className="field">
             <span>Hébergement</span>

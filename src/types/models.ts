@@ -137,6 +137,7 @@ export interface ConcertDetail extends ConcertSummary {
   greenroom: string | null;
   catering: string | null;
   fee: string | null;
+  fee_guso: boolean;
   lodging: string | null;
   notes: string | null;
   contacts: ConcertContacts | null;
