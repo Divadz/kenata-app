@@ -13,8 +13,9 @@ kenata-config.php
 # Affiches uploadées (générées à l'exécution)
 uploads/
 
-# Scripts de démarrage locaux (chemins spécifiques à la machine)
+# Scripts locaux (chemins/identifiants spécifiques à la machine)
 start-dev.bat
+deploy.ps1
 
 # Éditeurs
 .vscode/*
