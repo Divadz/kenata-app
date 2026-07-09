@@ -168,6 +168,7 @@ CREATE TABLE IF NOT EXISTS concerts (
   fee_guso            TINYINT(1)   NOT NULL DEFAULT 0,
   lodging             VARCHAR(512) NULL,
   visibility          ENUM('public','private') NOT NULL DEFAULT 'private',
+  merch               TINYINT(1)   NOT NULL DEFAULT 0,
   notes               TEXT         NULL,
   contacts            JSON         NULL,
   ticket_links        JSON         NULL,

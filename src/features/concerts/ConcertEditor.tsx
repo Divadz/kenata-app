@@ -153,20 +153,34 @@ export function ConcertEditor() {
             ))}
           </select>
         </label>
-        <label className="field">
-          <span>Visibilité</span>
-          <select
-            value={c.visibility}
-            onChange={(e) => {
-              const v = e.target.value as 'public' | 'private';
-              setField('visibility', v);
-              save({ visibility: v });
-            }}
-          >
-            <option value="private">Privé</option>
-            <option value="public">Public</option>
-          </select>
-        </label>
+        <div className="field">
+          <span>Options</span>
+          <div className="row" style={{ gap: '1rem' }}>
+            <label className="row" style={{ gap: '0.3rem', whiteSpace: 'nowrap' }}>
+              <input
+                type="checkbox"
+                checked={c.visibility === 'private'}
+                onChange={(e) => {
+                  const v = e.target.checked ? 'private' : 'public';
+                  setField('visibility', v);
+                  save({ visibility: v });
+                }}
+              />{' '}
+              Privé
+            </label>
+            <label className="row" style={{ gap: '0.3rem', whiteSpace: 'nowrap' }}>
+              <input
+                type="checkbox"
+                checked={c.merch}
+                onChange={(e) => {
+                  setField('merch', e.target.checked);
+                  save({ merch: e.target.checked });
+                }}
+              />{' '}
+              Merchandising
+            </label>
+          </div>
+        </div>
       </div>
       <p className="muted small">{countdownLabel(c.date)}</p>
       {selected && (

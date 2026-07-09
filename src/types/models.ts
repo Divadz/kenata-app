@@ -139,6 +139,7 @@ export interface ConcertDetail extends ConcertSummary {
   fee: string | null;
   fee_guso: boolean;
   lodging: string | null;
+  merch: boolean;
   notes: string | null;
   contacts: ConcertContacts | null;
   ticket_links: TicketLink[] | null;
