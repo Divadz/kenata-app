@@ -123,7 +123,7 @@ button, a, select, input, textarea { -webkit-tap-highlight-color: transparent; }
 }
 .spacer { flex: 1; }
 
-.tabs { display: flex; gap: 0.25rem; padding: 0.4rem 1rem; border-bottom: 1px solid var(--line); }
+.tabs { display: flex; flex-wrap: wrap; gap: 0.25rem; padding: 0.4rem 1rem; border-bottom: 1px solid var(--line); }
 .tabs a {
   color: var(--muted);
   text-decoration: none;
@@ -298,8 +298,17 @@ code { font-family: var(--mono); font-size: 0.85em; color: var(--cyan); }
 .dur-input { width: 72px; }
 .shared { max-width: 720px; }
 
-/* Champ extensible (contacts : 3 champs remplissant la largeur) */
+/* Champ extensible */
 .grow { flex: 1; min-width: 120px; }
+
+/* Contacts : Nom | Tél+bouton | Mail+bouton ; empilés (3 lignes) sur mobile */
+.contact-grid { display: flex; gap: 0.5rem; width: 100%; }
+.contact-grid > * { flex: 1 1 0; min-width: 0; }
+.input-btn { display: flex; gap: 0.5rem; }
+.input-btn .grow { flex: 1 1 auto; min-width: 0; }
+@media (max-width: 640px) {
+  .contact-grid { flex-direction: column; }
+}
 
 /* Chips matos (cochables) — bouton de console avec LED */
 .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }

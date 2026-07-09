@@ -255,7 +255,7 @@ export function ConcertEditor() {
             return (
               <div key={r.id} className="field full">
                 <span>{r.label}</span>
-                <div className="row full">
+                <div className="contact-grid">
                   <input
                     className="grow"
                     aria-label={`${r.label} — nom`}
@@ -264,41 +264,45 @@ export function ConcertEditor() {
                     onChange={(e) => setContact(r.id, 'name', e.target.value)}
                     onBlur={saveContacts}
                   />
-                  <input
-                    className="grow"
-                    aria-label={`${r.label} — téléphone`}
-                    placeholder="Téléphone"
-                    value={phone}
-                    onChange={(e) => setContact(r.id, 'phone', e.target.value)}
-                    onBlur={saveContacts}
-                  />
-                  {phone.trim() ? (
-                    <a className="btn small" href={`tel:${phone.replace(/\s/g, '')}`} aria-label={`Appeler ${r.label}`}>
-                      📞
-                    </a>
-                  ) : (
-                    <button className="btn small" disabled aria-label="Appeler">
-                      📞
-                    </button>
-                  )}
-                  <input
-                    className="grow"
-                    type="email"
-                    aria-label={`${r.label} — email`}
-                    placeholder="Mail"
-                    value={email}
-                    onChange={(e) => setContact(r.id, 'email', e.target.value)}
-                    onBlur={saveContacts}
-                  />
-                  {email.trim() ? (
-                    <a className="btn small" href={`mailto:${email.trim()}`} aria-label={`Écrire à ${r.label}`}>
-                      ✉
-                    </a>
-                  ) : (
-                    <button className="btn small" disabled aria-label="Écrire un mail">
-                      ✉
-                    </button>
-                  )}
+                  <div className="input-btn">
+                    <input
+                      className="grow"
+                      aria-label={`${r.label} — téléphone`}
+                      placeholder="Téléphone"
+                      value={phone}
+                      onChange={(e) => setContact(r.id, 'phone', e.target.value)}
+                      onBlur={saveContacts}
+                    />
+                    {phone.trim() ? (
+                      <a className="btn small" href={`tel:${phone.replace(/\s/g, '')}`} aria-label={`Appeler ${r.label}`}>
+                        📞
+                      </a>
+                    ) : (
+                      <button className="btn small" disabled aria-label="Appeler">
+                        📞
+                      </button>
+                    )}
+                  </div>
+                  <div className="input-btn">
+                    <input
+                      className="grow"
+                      type="email"
+                      aria-label={`${r.label} — email`}
+                      placeholder="Mail"
+                      value={email}
+                      onChange={(e) => setContact(r.id, 'email', e.target.value)}
+                      onBlur={saveContacts}
+                    />
+                    {email.trim() ? (
+                      <a className="btn small" href={`mailto:${email.trim()}`} aria-label={`Écrire à ${r.label}`}>
+                        ✉
+                      </a>
+                    ) : (
+                      <button className="btn small" disabled aria-label="Écrire un mail">
+                        ✉
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );
