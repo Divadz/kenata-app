@@ -799,7 +799,8 @@ function concerts_list(): never
 {
     Auth::requireMember();
     $stmt = db()->prepare(
-        "SELECT c.id, c.date, c.venue_name, c.visibility, c.target_duration_min, c.setlist_id,
+        "SELECT c.id, c.date, c.start_time, c.venue_name, c.visibility, c.merch,
+            c.fee, c.fee_guso, c.target_duration_min, c.setlist_id,
             s.name AS setlist_name,
             (SELECT COALESCE(SUM(CASE WHEN i.type = 'song' THEN so.duration_sec ELSE i.est_duration_sec END), 0)
                FROM setlist_items i LEFT JOIN songs so ON so.id = i.song_id
@@ -808,7 +809,12 @@ function concerts_list(): never
          WHERE c.group_id = ? ORDER BY c.date IS NULL, c.date"
     );
     $stmt->execute([group_id()]);
-    json_response($stmt->fetchAll());
+    $rows = array_map(function ($r) {
+        $r['merch'] = (bool) $r['merch'];
+        $r['fee_guso'] = (bool) $r['fee_guso'];
+        return $r;
+    }, $stmt->fetchAll());
+    json_response($rows);
 }
 
 function concerts_create(): never

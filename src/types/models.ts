@@ -118,8 +118,12 @@ export interface GearItem {
 export interface ConcertSummary {
   id: string;
   date: string | null;
+  start_time?: string | null;
   venue_name: string | null;
   visibility: 'public' | 'private';
+  merch?: boolean;
+  fee?: string | null;
+  fee_guso?: boolean;
   target_duration_min: number | null;
   setlist_id: string | null;
   setlist_name?: string | null;
