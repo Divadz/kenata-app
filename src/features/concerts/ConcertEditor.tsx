@@ -167,19 +167,6 @@ export function ConcertEditor() {
             <option value="public">Public</option>
           </select>
         </label>
-        <label className="field" style={{ justifyContent: 'flex-end' }}>
-          <span>
-            <input
-              type="checkbox"
-              checked={c.on_site}
-              onChange={(e) => {
-                setField('on_site', e.target.checked);
-                save({ on_site: e.target.checked });
-              }}
-            />{' '}
-            On joue sur place
-          </span>
-        </label>
       </div>
       <p className="muted small">{countdownLabel(c.date)}</p>
       {selected && (
