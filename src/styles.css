@@ -242,6 +242,9 @@ textarea { resize: vertical; width: 100%; }
 }
 .table tbody tr:hover { background: var(--panel); }
 .table tr.clickable { cursor: pointer; }
+.song-title-cell { display: flex; align-items: center; gap: 0.6rem; }
+.song-thumb { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; flex: none; }
+.song-title { font-weight: 700; }
 .table td.actions { white-space: nowrap; display: flex; gap: 0.3rem; }
 
 /* ---- Signature : jauge de maîtrise (VU-mètre) ---- */

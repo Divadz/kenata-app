@@ -146,7 +146,6 @@ export function RepertoirePage() {
             <thead>
               <tr>
                 <th>Titre</th>
-                <th>Artiste</th>
                 <th>Durée</th>
                 <th>BPM</th>
                 <th>Tonalité</th>
@@ -158,10 +157,26 @@ export function RepertoirePage() {
               {visible.map((s) => (
                 <tr key={s.id} className="clickable" onClick={() => openEdit(s)}>
                   <td>
-                    {s.title}
-                    {s.type === 'compo' && <span className="badge">compo</span>}
+                    <div className="song-title-cell">
+                      {s.cover && (
+                        <img
+                          className="song-thumb"
+                          src={s.cover}
+                          alt=""
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      )}
+                      <div>
+                        <div className="song-title">
+                          {s.title}
+                          {s.type === 'compo' && <span className="badge">compo</span>}
+                        </div>
+                        {s.artist && <div className="muted small">{s.artist}</div>}
+                      </div>
+                    </div>
                   </td>
-                  <td>{s.artist || '—'}</td>
                   <td className="mono">{formatDuration(s.duration_sec) || '—'}</td>
                   <td className="mono">{s.bpm || '—'}</td>
                   <td className="mono">{s.music_key || '—'}</td>
