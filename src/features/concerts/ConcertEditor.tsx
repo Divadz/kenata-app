@@ -266,14 +266,15 @@ export function ConcertEditor() {
         </button>
       </div>
 
-      {/* Contacts */}
+      {/* Contacts : une ligne par rôle */}
       <div className="card form full">
         <h3>Contacts</h3>
-        <div className="grid2">
+        <div className="stack full" style={{ gap: '0.5rem' }}>
           {ROLES.map((r) => (
-            <div key={r.id} className="stack" style={{ gap: '0.3rem' }}>
-              <span className="field"><span>{r.label}</span></span>
+            <div key={r.id} className="row contact-row">
+              <span className="contact-role">{r.label}</span>
               <input
+                className="grow"
                 aria-label={`${r.label} — nom`}
                 placeholder="Nom"
                 value={contacts[r.id]?.name ?? ''}
@@ -281,6 +282,7 @@ export function ConcertEditor() {
                 onBlur={saveContacts}
               />
               <input
+                className="grow"
                 aria-label={`${r.label} — téléphone`}
                 placeholder="06 …"
                 value={contacts[r.id]?.phone ?? ''}
@@ -288,8 +290,9 @@ export function ConcertEditor() {
                 onBlur={saveContacts}
               />
               <input
-                aria-label={`${r.label} — email`}
+                className="grow"
                 type="email"
+                aria-label={`${r.label} — email`}
                 placeholder="email@…"
                 value={contacts[r.id]?.email ?? ''}
                 onChange={(e) => setContact(r.id, 'email', e.target.value)}

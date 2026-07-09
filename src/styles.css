@@ -298,6 +298,11 @@ code { font-family: var(--mono); font-size: 0.85em; color: var(--cyan); }
 .dur-input { width: 72px; }
 .shared { max-width: 720px; }
 
+/* Contacts : label + champs sur une ligne par rôle */
+.contact-row { flex-wrap: wrap; }
+.contact-role { min-width: 110px; color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.contact-row .grow { flex: 1; min-width: 130px; }
+
 /* ---- Mouvement réduit ---- */
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
