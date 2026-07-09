@@ -3,7 +3,7 @@ import type { Song, SongType } from '../../types/models';
 import { KEYS, MASTERY_LEVELS, TUNINGS } from './constants';
 import { formatDuration, parseDuration } from '../../utils/duration';
 import { lookupMetadata } from './metadata';
-import { createSong, findDuplicate, updateSong, type SongRow } from './useSongs';
+import { createSong, deleteSong, findDuplicate, updateSong, type SongRow } from './useSongs';
 
 interface Props {
   songs: SongRow[];
@@ -27,6 +27,7 @@ export function SongForm({ songs, editing, onSaved, onClose }: Props) {
   const [watch, setWatch] = useState(editing?.watch ?? '');
   const [info, setInfo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const artists = useMemo(
     () => [...new Set(songs.map((s) => s.artist).filter(Boolean))] as string[],
@@ -84,6 +85,13 @@ export function SongForm({ songs, editing, onSaved, onClose }: Props) {
     } catch (e) {
       setError((e as Error).message);
     }
+  }
+
+  async function onDelete() {
+    if (!editing) return;
+    await deleteSong(editing.id);
+    onSaved();
+    onClose();
   }
 
   return (
@@ -216,10 +224,25 @@ export function SongForm({ songs, editing, onSaved, onClose }: Props) {
         </p>
       )}
 
-      <div className="row">
+      <div className="row between">
         <button className="btn primary" onClick={onSubmit}>
           {editing ? 'Enregistrer' : 'Ajouter au répertoire'}
         </button>
+        {editing &&
+          (confirmDelete ? (
+            <span className="row">
+              <button className="btn small danger" onClick={onDelete}>
+                Confirmer la suppression
+              </button>
+              <button className="btn small" onClick={() => setConfirmDelete(false)}>
+                Annuler
+              </button>
+            </span>
+          ) : (
+            <button className="btn small danger" onClick={() => setConfirmDelete(true)}>
+              Supprimer
+            </button>
+          ))}
       </div>
     </div>
   );

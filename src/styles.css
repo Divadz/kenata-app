@@ -241,6 +241,7 @@ textarea { resize: vertical; width: 100%; }
   letter-spacing: 0.07em;
 }
 .table tbody tr:hover { background: var(--panel); }
+.table tr.clickable { cursor: pointer; }
 .table td.actions { white-space: nowrap; display: flex; gap: 0.3rem; }
 
 /* ---- Signature : jauge de maîtrise (VU-mètre) ---- */

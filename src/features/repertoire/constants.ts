@@ -16,11 +16,20 @@ export const TUNINGS = [
   'Autre',
 ] as const;
 
-// Tonalités : Do → Si, en majeur et mineur.
-const NOTES = ['Do', 'Do#', 'Ré', 'Ré#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', 'La#', 'Si'];
-export const KEYS: string[] = [
-  ...NOTES.map((n) => `${n} majeur`),
-  ...NOTES.map((n) => `${n} mineur`),
-];
+// Tonalités : notation anglaise, majeur (C) et mineur (Cm), de A à G,
+// avec les altérations dièse (#) et bémol (b) énharmoniques.
+const NOTE_ORDER = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+const ACCIDENTALS: Record<string, string[]> = {
+  A: ['A#', 'Bb'],
+  C: ['C#', 'Db'],
+  D: ['D#', 'Eb'],
+  F: ['F#', 'Gb'],
+  G: ['G#', 'Ab'],
+};
+export const KEYS: string[] = NOTE_ORDER.flatMap((n) => [
+  n,
+  `${n}m`,
+  ...(ACCIDENTALS[n] ?? []).flatMap((acc) => [acc, `${acc}m`]),
+]);
 
 export const MASTERY_LEVELS = [0, 1, 2, 3, 4, 5] as const;

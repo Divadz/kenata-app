@@ -3,7 +3,7 @@ import { TUNINGS } from './constants';
 import { formatDuration } from '../../utils/duration';
 import { SongForm } from './SongForm';
 import { ImportSongs } from './ImportSongs';
-import { deleteSong, useSongs, type SongRow } from './useSongs';
+import { useSongs, type SongRow } from './useSongs';
 
 type SortKey = 'az' | 'za' | 'mastery_desc' | 'mastery_asc' | 'album' | 'duration' | 'bpm';
 
@@ -13,7 +13,6 @@ export function RepertoirePage() {
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [editing, setEditing] = useState<SongRow | null>(null);
-  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
   const [fArtist, setFArtist] = useState('');
   const [fTuning, setFTuning] = useState('');
@@ -148,56 +147,27 @@ export function RepertoirePage() {
               <tr>
                 <th>Titre</th>
                 <th>Artiste</th>
-                <th>Album</th>
                 <th>Durée</th>
-                <th>Maît.</th>
-                <th>Accordage</th>
-                <th>Tonalité</th>
                 <th>BPM</th>
-                <th></th>
+                <th>Tonalité</th>
+                <th>Accordage</th>
+                <th>Maîtrise</th>
               </tr>
             </thead>
             <tbody>
               {visible.map((s) => (
-                <tr key={s.id}>
+                <tr key={s.id} className="clickable" onClick={() => openEdit(s)}>
                   <td>
                     {s.title}
                     {s.type === 'compo' && <span className="badge">compo</span>}
                   </td>
                   <td>{s.artist || '—'}</td>
-                  <td>{s.album || '—'}</td>
                   <td className="mono">{formatDuration(s.duration_sec) || '—'}</td>
+                  <td className="mono">{s.bpm || '—'}</td>
+                  <td className="mono">{s.music_key || '—'}</td>
+                  <td className="mono">{s.tuning || '—'}</td>
                   <td>
                     <MasteryMeter value={s.mastery ?? 0} />
-                  </td>
-                  <td className="mono">{s.tuning || '—'}</td>
-                  <td className="mono">{s.music_key || '—'}</td>
-                  <td className="mono">{s.bpm || '—'}</td>
-                  <td className="actions">
-                    <button className="btn small" onClick={() => openEdit(s)}>
-                      Éditer
-                    </button>
-                    {pendingDelete === s.id ? (
-                      <>
-                        <button
-                          className="btn small danger"
-                          onClick={async () => {
-                            await deleteSong(s.id);
-                            await reload();
-                            setPendingDelete(null);
-                          }}
-                        >
-                          Confirmer
-                        </button>
-                        <button className="btn small" onClick={() => setPendingDelete(null)}>
-                          Annuler
-                        </button>
-                      </>
-                    ) : (
-                      <button className="btn small" onClick={() => setPendingDelete(s.id)}>
-                        Suppr.
-                      </button>
-                    )}
                   </td>
                 </tr>
               ))}
