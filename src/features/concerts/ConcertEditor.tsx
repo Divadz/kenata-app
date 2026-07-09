@@ -19,6 +19,7 @@ import {
   getConcert,
   updateConcert,
   uploadPoster,
+  useConcerts,
 } from './useConcerts';
 
 type StrKey =
@@ -37,6 +38,7 @@ export function ConcertEditor() {
   const { sectionOrder } = useAuth();
   const { setlists } = useSetlists();
   const { items: gearItems } = useGearItems();
+  const { concerts } = useConcerts();
 
   const [c, setC] = useState<ConcertDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -115,6 +117,7 @@ export function ConcertEditor() {
   const orgEmail = contacts.org?.email;
   const mapsHref = c.maps_url
     || (c.address ? `https://www.google.com/maps/search/${encodeURIComponent(c.address)}` : '');
+  const dateConflict = c.date ? concerts.find((x) => x.id !== id && x.date === c.date) : undefined;
 
   const essentiel = (
     <div className="card form full" key="essentiel">
@@ -187,6 +190,14 @@ export function ConcertEditor() {
         </div>
       </div>
       <p className="muted small">{countdownLabel(c.date)}</p>
+      {dateConflict && (
+        <p className="warn" role="alert">
+          ⚠ Un concert existe déjà le{' '}
+          {new Date(c.date + 'T00:00:00').toLocaleDateString('fr-FR')} : «{' '}
+          {dateConflict.venue_name || 'Sans titre'} ». Saisis une autre date, ou{' '}
+          <Link to={`/concerts/${dateConflict.id}`}>ouvre le concert existant</Link>.
+        </p>
+      )}
       {/* Rappels */}
       <p className="small">
         <span className="muted">Cachet :</span>{' '}
