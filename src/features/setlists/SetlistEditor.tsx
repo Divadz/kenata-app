@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import type { SetlistItem } from '../../types/models';
-import { formatDuration, parseDuration } from '../../utils/duration';
+import { formatDuration, formatHM, parseDuration } from '../../utils/duration';
+import { DurationSelect } from '../../components/DurationSelect';
 import { useSongs } from '../repertoire/useSongs';
 import { MOODS, type MoodId, moodLabel, randomPhrase } from './souffleur';
 import {
@@ -24,7 +25,7 @@ export function SetlistEditor() {
   const { songs } = useSongs();
 
   const [name, setName] = useState('');
-  const [target, setTarget] = useState('');
+  const [target, setTarget] = useState<number | null>(null);
   const [items, setItems] = useState<EditItem[]>([]);
   const [shareToken, setShareToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -40,7 +41,7 @@ export function SetlistEditor() {
     getSetlist(id)
       .then((sl) => {
         setName(sl.name);
-        setTarget(sl.target_duration_min ? String(sl.target_duration_min) : '');
+        setTarget(sl.target_duration_min ?? null);
         setShareToken(sl.share_token);
         setItems(sl.items.map((it) => ({ ...it, _key: newKey() })));
       })
@@ -111,9 +112,6 @@ export function SetlistEditor() {
   async function onNameBlur() {
     await updateSetlist(id, { name: name.trim() || 'Sans titre' });
   }
-  async function onTargetBlur() {
-    await updateSetlist(id, { target_duration_min: target ? parseInt(target, 10) || null : null });
-  }
 
   // Durées + détection des changements d'accordage entre morceaux consécutifs.
   const { totalSec, rows } = useMemo(() => {
@@ -133,7 +131,7 @@ export function SetlistEditor() {
     return { totalSec: total, rows: r };
   }, [items]);
 
-  const targetSec = (target ? parseInt(target, 10) || 0 : 0) * 60;
+  const targetSec = (target ?? 0) * 60;
   const gaugePct = targetSec ? Math.min(100, (totalSec / targetSec) * 100) : 0;
   const gaugeState = !targetSec
     ? 'neutral'
@@ -170,13 +168,14 @@ export function SetlistEditor() {
           <input value={name} onChange={(e) => setName(e.target.value)} onBlur={onNameBlur} />
         </label>
         <label className="field">
-          <span>Durée cible (min)</span>
-          <input
-            type="number"
-            min="0"
+          <span>Durée cible</span>
+          <DurationSelect
+            ariaLabel="Durée cible"
             value={target}
-            onChange={(e) => setTarget(e.target.value)}
-            onBlur={onTargetBlur}
+            onChange={(v) => {
+              setTarget(v);
+              void updateSetlist(id, { target_duration_min: v });
+            }}
           />
         </label>
       </div>
@@ -185,8 +184,8 @@ export function SetlistEditor() {
       <div className={`gauge ${gaugeState}`}>
         <div className="gauge-bar" style={{ width: `${gaugePct}%` }} />
         <span className="gauge-label mono">
-          {formatDuration(totalSec) || '0:00'}
-          {targetSec ? ` / ${target} min` : ''}
+          {formatHM(totalSec) || '00h00'}
+          {targetSec ? ` / ${formatHM(targetSec)}` : ''}
         </span>
       </div>
 

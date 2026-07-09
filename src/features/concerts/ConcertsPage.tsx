@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { formatDuration } from '../../utils/duration';
+import { formatHM } from '../../utils/duration';
 import { countdownLabel, createConcert, deleteConcert, useConcerts } from './useConcerts';
 
 export function ConcertsPage() {
@@ -53,8 +53,8 @@ export function ConcertsPage() {
                 </p>
                 {c.setlist_name && (
                   <p className="muted small">
-                    {c.setlist_name} · <span className="mono">{formatDuration(sec) || '0:00'}</span>
-                    {targetSec ? ` / ${c.target_duration_min} min` : ''}
+                    {c.setlist_name} · <span className="mono">{formatHM(sec) || '00h00'}</span>
+                    {targetSec ? ` / ${formatHM(targetSec)}` : ''}
                     {over && <span className="warn"> · trop long</span>}
                     {under && <span className="warn"> · trop court</span>}
                   </p>

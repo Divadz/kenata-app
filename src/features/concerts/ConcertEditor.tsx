@@ -7,7 +7,8 @@ import type {
   RoadmapItem,
   TicketLink,
 } from '../../types/models';
-import { formatDuration } from '../../utils/duration';
+import { formatHM } from '../../utils/duration';
+import { DurationSelect } from '../../components/DurationSelect';
 import { useAuth } from '../../auth/AuthProvider';
 import { useSetlists } from '../setlists/useSetlists';
 import { useGearItems } from '../gear/useGearItems';
@@ -124,34 +125,26 @@ export function ConcertEditor() {
           />
         </label>
         <label className="field">
-          <span>Durée cible (min)</span>
+          <span>Heure de début</span>
           <input
-            type="number"
-            min="0"
-            value={c.target_duration_min ?? ''}
-            onChange={(e) =>
-              setField('target_duration_min', e.target.value ? parseInt(e.target.value, 10) : null)
-            }
-            onBlur={() => save({ target_duration_min: cRef.current?.target_duration_min ?? null })}
+            type="time"
+            value={c.start_time ?? ''}
+            onChange={(e) => {
+              setField('start_time', e.target.value || null);
+              save({ start_time: e.target.value || null });
+            }}
           />
         </label>
         <label className="field">
-          <span>Setlist</span>
-          <select
-            value={c.setlist_id ?? ''}
-            onChange={(e) => {
-              const v = e.target.value || null;
-              setField('setlist_id', v);
-              save({ setlist_id: v });
+          <span>Durée cible</span>
+          <DurationSelect
+            ariaLabel="Durée cible"
+            value={c.target_duration_min}
+            onChange={(v) => {
+              setField('target_duration_min', v);
+              save({ target_duration_min: v });
             }}
-          >
-            <option value="">— aucune —</option>
-            {setlists.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
+          />
         </label>
         <div className="field">
           <span>Options</span>
@@ -185,8 +178,8 @@ export function ConcertEditor() {
       <p className="muted small">{countdownLabel(c.date)}</p>
       {selected && (
         <p className={`small ${durState === 'over' || durState === 'under' ? 'warn' : 'muted'}`}>
-          Setlist : <span className="mono">{formatDuration(setlistSec) || '0:00'}</span>
-          {targetSec ? ` / ${c.target_duration_min} min` : ''}
+          Setlist : <span className="mono">{formatHM(setlistSec) || '00h00'}</span>
+          {targetSec ? ` / ${formatHM(targetSec)}` : ''}
           {durState === 'over' && ' · dépasse le créneau'}
           {durState === 'under' && ' · plus court que le créneau'}
           {durState === 'ok' && ' · dans le créneau ✓'}
@@ -339,10 +332,30 @@ export function ConcertEditor() {
     rider: (
       <div className="card form full" key="rider">
         <h3>Fiche technique</h3>
-        <label className="field">
-          <span>Lien du rider</span>
-          <input placeholder="https://drive…" {...t('tech_sheet_url')} />
-        </label>
+        <div className="grid2">
+          <label className="field">
+            <span>Setlist</span>
+            <select
+              value={c.setlist_id ?? ''}
+              onChange={(e) => {
+                const v = e.target.value || null;
+                setField('setlist_id', v);
+                save({ setlist_id: v });
+              }}
+            >
+              <option value="">— aucune —</option>
+              {setlists.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>Lien du rider</span>
+            <input placeholder="https://drive…" {...t('tech_sheet_url')} />
+          </label>
+        </div>
         {c.tech_sheet_url && (
           <div className="row">
             <a className="btn small" href={`mailto:${orgEmail ?? ''}?subject=Rider&body=${riderText}`}>

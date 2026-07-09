@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api, ApiError } from '../../api/client';
 import type { SetlistItem } from '../../types/models';
-import { formatDuration } from '../../utils/duration';
+import { formatDuration, formatHM } from '../../utils/duration';
 import { itemDuration } from './useSetlists';
 import { moodLabel } from './souffleur';
 
@@ -46,8 +46,8 @@ export function SharedSetlist() {
       <div className="brand logo">Kenata 🤘</div>
       <h1>{data.name}</h1>
       <p className="muted">
-        <span className="mono">{formatDuration(total) || '0:00'}</span>
-        {data.target_duration_min ? ` / ${data.target_duration_min} min visés` : ''} · {data.items.length}{' '}
+        <span className="mono">{formatHM(total) || '00h00'}</span>
+        {data.target_duration_min ? ` / ${formatHM(data.target_duration_min * 60)} visés` : ''} · {data.items.length}{' '}
         élément{data.items.length > 1 ? 's' : ''}
       </p>
 

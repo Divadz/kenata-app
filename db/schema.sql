@@ -152,6 +152,7 @@ CREATE TABLE IF NOT EXISTS concerts (
   id                  CHAR(36)     NOT NULL,
   group_id            VARCHAR(64)  NOT NULL,
   date                DATE         NULL,
+  start_time          VARCHAR(5)   NULL,
   venue_name          VARCHAR(255) NULL,
   poster_url          VARCHAR(1024) NULL,
   poster_is_link      TINYINT(1)   NOT NULL DEFAULT 0,

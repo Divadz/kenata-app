@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { formatDuration } from '../../utils/duration';
+import { formatHM } from '../../utils/duration';
+import { DurationSelect } from '../../components/DurationSelect';
 import { createSetlist, deleteSetlist, useSetlists } from './useSetlists';
 
 export function SetlistsPage() {
   const { setlists, loading, reload } = useSetlists();
   const [name, setName] = useState('');
-  const [target, setTarget] = useState('');
+  const [target, setTarget] = useState<number | null>(null);
   const [creating, setCreating] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -19,9 +20,9 @@ export function SetlistsPage() {
     }
     setCreating(true);
     try {
-      await createSetlist(name.trim(), target ? parseInt(target, 10) || null : null);
+      await createSetlist(name.trim(), target);
       setName('');
-      setTarget('');
+      setTarget(null);
       await reload();
     } catch (e) {
       setError((e as Error).message);
@@ -43,14 +44,7 @@ export function SetlistsPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
-          <input
-            aria-label="Durée cible en minutes"
-            type="number"
-            min="0"
-            placeholder="Durée cible (min)"
-            value={target}
-            onChange={(e) => setTarget(e.target.value)}
-          />
+          <DurationSelect ariaLabel="Durée cible" value={target} onChange={setTarget} />
           <button className="btn primary" onClick={onCreate} disabled={creating}>
             {creating ? 'Création…' : 'Créer'}
           </button>
@@ -78,8 +72,8 @@ export function SetlistsPage() {
               </div>
               <p className="muted small">
                 {s.item_count} élément{s.item_count > 1 ? 's' : ''} ·{' '}
-                <span className="mono">{formatDuration(s.total_sec) || '0:00'}</span>
-                {s.target_duration_min ? ` / ${s.target_duration_min} min` : ''}
+                <span className="mono">{formatHM(Number(s.total_sec)) || '00h00'}</span>
+                {s.target_duration_min ? ` / ${formatHM(s.target_duration_min * 60)}` : ''}
               </p>
               <div className="row">
                 <Link className="btn small" to={`/setlists/${s.id}`}>

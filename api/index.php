@@ -761,6 +761,10 @@ function sanitize_concert(array $b): array
         $d = trim((string) ($b['date'] ?? ''));
         $out['date'] = preg_match('/^\d{4}-\d{2}-\d{2}$/', $d) ? $d : null;
     }
+    if (array_key_exists('start_time', $b)) {
+        $s = trim((string) ($b['start_time'] ?? ''));
+        $out['start_time'] = preg_match('/^\d{2}:\d{2}$/', $s) ? $s : null;
+    }
     if (array_key_exists('target_duration_min', $b)) {
         $out['target_duration_min'] = nullable_int($b['target_duration_min']);
     }
@@ -887,12 +891,12 @@ function concert_duplicate(string $id): never
     $new = uuidv4();
     db()->prepare(
         'INSERT INTO concerts
-         (id, group_id, date, venue_name, poster_url, poster_is_link, target_duration_min, on_site, setlist_id,
+         (id, group_id, date, start_time, venue_name, poster_url, poster_is_link, target_duration_min, on_site, setlist_id,
           tech_sheet_url, address, maps_url, parking, greenroom, catering, fee, fee_guso, lodging,
           visibility, merch, notes, contacts, ticket_links, roadmap, gear_checklist)
-         VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+         VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     )->execute([
-        $new, group_id(), trim(($row['venue_name'] ?? '') . ' (copie)'),
+        $new, group_id(), $row['start_time'], trim(($row['venue_name'] ?? '') . ' (copie)'),
         $row['poster_url'], $row['poster_is_link'], $row['target_duration_min'], $row['on_site'], $row['setlist_id'],
         $row['tech_sheet_url'], $row['address'], $row['maps_url'], $row['parking'], $row['greenroom'],
         $row['catering'], $row['fee'], $row['fee_guso'], $row['lodging'], $row['visibility'], $row['merch'], $row['notes'],
