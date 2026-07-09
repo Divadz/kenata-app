@@ -6,6 +6,15 @@ require __DIR__ . '/lib/Session.php';
 require __DIR__ . '/lib/Auth.php';
 require __DIR__ . '/lib/GoogleOAuth.php';
 
+// En dev (serveur intégré `php -S`) : servir les fichiers statiques existants
+// (ex. /uploads/...) au lieu de router. Ignoré en prod (Apache sert directement).
+if (PHP_SAPI === 'cli-server') {
+    $reqPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+    if ($reqPath !== '/' && is_file(__DIR__ . '/..' . $reqPath)) {
+        return false;
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -911,6 +920,55 @@ function concert_duplicate(string $id): never
     json_response(['id' => $new], 201);
 }
 
+/** Upload de l'affiche (image) — enregistrée dans /uploads, renvoie son URL. */
+function concert_poster_upload(string $id): never
+{
+    Auth::requireMember();
+    Auth::enforceCsrf();
+    require_concert($id);
+
+    if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+        json_response(['error' => 'no_file'], 422);
+    }
+    $f = $_FILES['file'];
+    if ($f['size'] > 5 * 1024 * 1024) {
+        json_response(['error' => 'too_large'], 422);
+    }
+    $info = @getimagesize($f['tmp_name']);
+    if ($info === false) {
+        json_response(['error' => 'not_image'], 422);
+    }
+    $ext = match ($info[2]) {
+        IMAGETYPE_JPEG => 'jpg',
+        IMAGETYPE_PNG  => 'png',
+        IMAGETYPE_GIF  => 'gif',
+        IMAGETYPE_WEBP => 'webp',
+        default        => null,
+    };
+    if ($ext === null) {
+        json_response(['error' => 'unsupported'], 422);
+    }
+
+    $dir = __DIR__ . '/../uploads';
+    if (!is_dir($dir)) {
+        mkdir($dir, 0755, true);
+    }
+    // Interdit l'exécution de scripts dans le dossier d'upload.
+    $ht = $dir . '/.htaccess';
+    if (!is_file($ht)) {
+        file_put_contents($ht, "<FilesMatch \"\\.(php|phtml|phar|cgi|pl)$\">\nRequire all denied\n</FilesMatch>\n");
+    }
+
+    $name = bin2hex(random_bytes(16)) . '.' . $ext;
+    if (!move_uploaded_file($f['tmp_name'], $dir . '/' . $name)) {
+        json_response(['error' => 'save_failed'], 500);
+    }
+    $url = '/uploads/' . $name;
+    db()->prepare('UPDATE concerts SET poster_url = ?, poster_is_link = 0, updated_at = NOW() WHERE id = ? AND group_id = ?')
+        ->execute([$url, $id, group_id()]);
+    json_response(['url' => $url]);
+}
+
 // ---------------------------------------------------------------------------
 // Inventaire matos
 // ---------------------------------------------------------------------------
@@ -1032,6 +1090,7 @@ $routes = [
     ['PATCH',  '#^/concerts/([^/]+)$#',         'concert_update'],
     ['DELETE', '#^/concerts/([^/]+)$#',         'concert_delete'],
     ['POST',   '#^/concerts/([^/]+)/duplicate$#', 'concert_duplicate'],
+    ['POST',   '#^/concerts/([^/]+)/poster$#',  'concert_poster_upload'],
 
     ['GET',    '#^/gear-items$#',               'gear_items_list'],
     ['POST',   '#^/gear-items$#',               'gear_items_create'],

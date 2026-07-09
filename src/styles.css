@@ -162,7 +162,19 @@ button, a, select, input, textarea { -webkit-tap-highlight-color: transparent; }
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
+  text-decoration: none;
   transition: border-color 0.15s, background 0.15s;
+}
+/* Bouton icône (tél / mail / maps) : carré, taille uniforme */
+.btn.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  min-width: 2.4rem;
+  padding: 0.3rem 0;
+  font-size: 1rem;
+  line-height: 1;
 }
 .btn:hover { border-color: #453d50; }
 .btn.primary {

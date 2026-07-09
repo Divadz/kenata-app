@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api } from '../../api/client';
+import { api, uploadFile } from '../../api/client';
 import type { ConcertDetail, ConcertSummary } from '../../types/models';
 
 export function useConcerts() {
@@ -35,6 +35,9 @@ export function updateConcert(id: string, patch: Partial<ConcertDetail>) {
 }
 export function duplicateConcert(id: string) {
   return api<{ id: string }>(`/concerts/${id}/duplicate`, { method: 'POST' });
+}
+export function uploadPoster(id: string, file: File) {
+  return uploadFile<{ url: string }>(`/concerts/${id}/poster`, file);
 }
 
 /** Nombre de jours avant la date (négatif si passé), ou null. */

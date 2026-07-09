@@ -12,7 +12,14 @@ import { useAuth } from '../../auth/AuthProvider';
 import { useSetlists } from '../setlists/useSetlists';
 import { useGearItems } from '../gear/useGearItems';
 import type { SectionKey } from './sections';
-import { countdownLabel, deleteConcert, duplicateConcert, getConcert, updateConcert } from './useConcerts';
+import {
+  countdownLabel,
+  deleteConcert,
+  duplicateConcert,
+  getConcert,
+  updateConcert,
+  uploadPoster,
+} from './useConcerts';
 
 type StrKey =
   | 'venue_name' | 'poster_url' | 'tech_sheet_url' | 'address' | 'maps_url'
@@ -36,6 +43,7 @@ export function ConcertEditor() {
   const [saved, setSaved] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [posterError, setPosterError] = useState(false);
+  const [posterMsg, setPosterMsg] = useState<string | null>(null);
   const cRef = useRef<ConcertDetail | null>(null);
   cRef.current = c;
 
@@ -80,6 +88,22 @@ export function ConcertEditor() {
   ) {
     setField(key, arr);
     save({ [key]: arr } as Partial<ConcertDetail>);
+  }
+
+  async function onPosterFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPosterMsg('Import…');
+    try {
+      const { url } = await uploadPoster(id, file);
+      setField('poster_url', url);
+      setPosterError(false);
+      setPosterMsg('Image importée ✓');
+    } catch {
+      setPosterMsg('Échec de l’import (image trop lourde ou format non supporté).');
+    } finally {
+      e.target.value = '';
+    }
   }
 
   const tickets = c.ticket_links ?? [];
@@ -202,29 +226,16 @@ export function ConcertEditor() {
     affiche: (
       <div className="card form full" key="affiche">
         <h3>Affiche</h3>
-        <div className="grid2">
-          <label className="field">
-            <span>URL de l'affiche</span>
-            <input placeholder="https://…" {...t('poster_url')} />
+        <div className="row">
+          <label className="btn small" style={{ cursor: 'pointer' }}>
+            📷 Importer une image
+            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={onPosterFile} />
           </label>
-          <label className="field">
-            <span>Type</span>
-            <select
-              value={c.poster_is_link ? 'link' : 'image'}
-              onChange={(e) => {
-                const v = e.target.value === 'link';
-                setField('poster_is_link', v);
-                save({ poster_is_link: v });
-              }}
-            >
-              <option value="image">Image (affichée)</option>
-              <option value="link">Lien (bouton)</option>
-            </select>
-          </label>
+          <input className="grow" placeholder="… ou coller une URL" {...t('poster_url')} />
         </div>
+        {posterMsg && <span className="muted small">{posterMsg}</span>}
         {c.poster_url && (
           <div className="stack" style={{ gap: '0.4rem', alignItems: 'flex-start' }}>
-            {/* L'affiche s'affiche dans tous les cas (image ou lien). */}
             <img
               src={c.poster_url}
               alt="Affiche du concert"
@@ -232,13 +243,11 @@ export function ConcertEditor() {
               onLoad={() => setPosterError(false)}
               style={{ maxWidth: '220px', borderRadius: 8, display: posterError ? 'none' : 'block' }}
             />
-            {(c.poster_is_link || posterError) && (
-              <a className="btn small" href={c.poster_url} target="_blank" rel="noreferrer">
-                🔗 Ouvrir l'affiche
-              </a>
-            )}
+            <a className="btn small" href={c.poster_url} target="_blank" rel="noreferrer">
+              🔗 Ouvrir l'affiche
+            </a>
             {posterError && (
-              <span className="muted small">Aperçu indisponible — utilise le bouton pour ouvrir le lien.</span>
+              <span className="muted small">Aperçu indisponible — l'URL n'est pas une image affichable.</span>
             )}
           </div>
         )}
@@ -274,11 +283,11 @@ export function ConcertEditor() {
                       onBlur={saveContacts}
                     />
                     {phone.trim() ? (
-                      <a className="btn small" href={`tel:${phone.replace(/\s/g, '')}`} aria-label={`Appeler ${r.label}`}>
+                      <a className="btn small icon-btn" href={`tel:${phone.replace(/\s/g, '')}`} aria-label={`Appeler ${r.label}`}>
                         📞
                       </a>
                     ) : (
-                      <button className="btn small" disabled aria-label="Appeler">
+                      <button className="btn small icon-btn" disabled aria-label="Appeler">
                         📞
                       </button>
                     )}
@@ -294,11 +303,11 @@ export function ConcertEditor() {
                       onBlur={saveContacts}
                     />
                     {email.trim() ? (
-                      <a className="btn small" href={`mailto:${email.trim()}`} aria-label={`Écrire à ${r.label}`}>
+                      <a className="btn small icon-btn" href={`mailto:${email.trim()}`} aria-label={`Écrire à ${r.label}`}>
                         ✉
                       </a>
                     ) : (
-                      <button className="btn small" disabled aria-label="Écrire un mail">
+                      <button className="btn small icon-btn" disabled aria-label="Écrire un mail">
                         ✉
                       </button>
                     )}
@@ -396,11 +405,11 @@ export function ConcertEditor() {
             <div className="row full">
               <input className="grow" placeholder="https://maps…" {...t('maps_url')} />
               {mapsHref ? (
-                <a className="btn small" href={mapsHref} target="_blank" rel="noreferrer" aria-label="Ouvrir dans Maps">
+                <a className="btn small icon-btn" href={mapsHref} target="_blank" rel="noreferrer" aria-label="Ouvrir dans Maps">
                   🗺
                 </a>
               ) : (
-                <button className="btn small" disabled aria-label="Ouvrir dans Maps">
+                <button className="btn small icon-btn" disabled aria-label="Ouvrir dans Maps">
                   🗺
                 </button>
               )}

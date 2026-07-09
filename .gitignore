@@ -10,6 +10,9 @@ dist-ssr
 api/config.php
 kenata-config.php
 
+# Affiches uploadées (générées à l'exécution)
+uploads/
+
 # Scripts de démarrage locaux (chemins spécifiques à la machine)
 start-dev.bat
 
