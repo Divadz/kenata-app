@@ -35,12 +35,10 @@ export function ConcertsPage() {
         <div className="cards cards-3 full">
           {concerts.map((c) => (
             <Link key={c.id} className="card link concert-card" to={`/concerts/${c.id}`}>
-              <div className="row between">
-                <span className="setlist-name">{c.venue_name || 'Sans titre'}</span>
-                <span className="row" style={{ gap: '0.3rem' }}>
-                  <span className="badge">{c.visibility === 'private' ? 'privé' : 'public'}</span>
-                  {c.merch && <span className="badge">merch</span>}
-                </span>
+              <span className="setlist-name">{c.venue_name || 'Sans titre'}</span>
+              <div className="row" style={{ justifyContent: 'flex-end', gap: '0.3rem' }}>
+                <span className="badge">{c.visibility === 'private' ? 'privé' : 'public'}</span>
+                {c.merch && <span className="badge">merch</span>}
               </div>
 
               <p className="muted small">
