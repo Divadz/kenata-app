@@ -269,37 +269,61 @@ export function ConcertEditor() {
       {/* Contacts : une ligne par rôle */}
       <div className="card form full">
         <h3>Contacts</h3>
-        <div className="stack full" style={{ gap: '0.5rem' }}>
-          {ROLES.map((r) => (
-            <div key={r.id} className="row contact-row">
-              <span className="contact-role">{r.label}</span>
-              <input
-                className="grow"
-                aria-label={`${r.label} — nom`}
-                placeholder="Nom"
-                value={contacts[r.id]?.name ?? ''}
-                onChange={(e) => setContact(r.id, 'name', e.target.value)}
-                onBlur={saveContacts}
-              />
-              <input
-                className="grow"
-                aria-label={`${r.label} — téléphone`}
-                placeholder="06 …"
-                value={contacts[r.id]?.phone ?? ''}
-                onChange={(e) => setContact(r.id, 'phone', e.target.value)}
-                onBlur={saveContacts}
-              />
-              <input
-                className="grow"
-                type="email"
-                aria-label={`${r.label} — email`}
-                placeholder="email@…"
-                value={contacts[r.id]?.email ?? ''}
-                onChange={(e) => setContact(r.id, 'email', e.target.value)}
-                onBlur={saveContacts}
-              />
-            </div>
-          ))}
+        <div className="stack full" style={{ gap: '0.75rem' }}>
+          {ROLES.map((r) => {
+            const phone = contacts[r.id]?.phone ?? '';
+            const email = contacts[r.id]?.email ?? '';
+            return (
+              <div key={r.id} className="field full">
+                <span>{r.label}</span>
+                <div className="row full">
+                  <input
+                    className="grow"
+                    aria-label={`${r.label} — nom`}
+                    placeholder="Nom"
+                    value={contacts[r.id]?.name ?? ''}
+                    onChange={(e) => setContact(r.id, 'name', e.target.value)}
+                    onBlur={saveContacts}
+                  />
+                  <input
+                    className="grow"
+                    aria-label={`${r.label} — téléphone`}
+                    placeholder="Téléphone"
+                    value={phone}
+                    onChange={(e) => setContact(r.id, 'phone', e.target.value)}
+                    onBlur={saveContacts}
+                  />
+                  {phone.trim() ? (
+                    <a className="btn small" href={`tel:${phone.replace(/\s/g, '')}`} aria-label={`Appeler ${r.label}`}>
+                      📞
+                    </a>
+                  ) : (
+                    <button className="btn small" disabled aria-label="Appeler">
+                      📞
+                    </button>
+                  )}
+                  <input
+                    className="grow"
+                    type="email"
+                    aria-label={`${r.label} — email`}
+                    placeholder="Mail"
+                    value={email}
+                    onChange={(e) => setContact(r.id, 'email', e.target.value)}
+                    onBlur={saveContacts}
+                  />
+                  {email.trim() ? (
+                    <a className="btn small" href={`mailto:${email.trim()}`} aria-label={`Écrire à ${r.label}`}>
+                      ✉
+                    </a>
+                  ) : (
+                    <button className="btn small" disabled aria-label="Écrire un mail">
+                      ✉
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
