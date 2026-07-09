@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { useGroup } from '../features/group/useGroup';
+import { InstallButton } from './InstallButton';
 
 export function AppShell() {
   const { member, logout } = useAuth();
@@ -14,6 +15,7 @@ export function AppShell() {
         <span className="muted small">
           {member?.profile?.name || member?.email} · {member?.role}
         </span>
+        <InstallButton />
         <button className="btn small" onClick={() => logout()}>
           Déconnexion
         </button>
