@@ -1,14 +1,16 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { useGroup } from '../features/group/useGroup';
+import { Onboarding } from '../features/onboarding/Onboarding';
 
 export function HomePage() {
   const { member } = useAuth();
   const { meta } = useGroup();
 
   return (
-    <section className="stack">
+    <section className="stack full">
       <h2>Salut {member?.profile?.name || meta?.name || 'Kenata'} 🤘</h2>
+      <Onboarding />
       <div className="cards">
         <Link className="card link" to="/repertoire">
           Répertoire

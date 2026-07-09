@@ -189,6 +189,24 @@ function auth_dev_login(): never
     redirect_to((string) config('app.post_login_redirect', '/'));
 }
 
+/** Compteurs pour le guide de démarrage. */
+function stats(): never
+{
+    Auth::requireMember();
+    $count = function (string $table): int {
+        $st = db()->prepare("SELECT COUNT(*) AS c FROM $table WHERE group_id = ?");
+        $st->execute([group_id()]);
+        return (int) $st->fetch()['c'];
+    };
+    json_response([
+        'songs'      => $count('songs'),
+        'setlists'   => $count('setlists'),
+        'concerts'   => $count('concerts'),
+        'gear_items' => $count('gear_items'),
+        'members'    => $count('memberships'),
+    ]);
+}
+
 function auth_me(): never
 {
     $user = Auth::user();
@@ -1053,6 +1071,7 @@ $routes = [
     ['GET',    '#^/auth/google/callback$#',     'auth_google_callback'],
     ['GET',    '#^/auth/dev-login$#',           'auth_dev_login'],
     ['GET',    '#^/auth/me$#',                  'auth_me'],
+    ['GET',    '#^/stats$#',                    'stats'],
     ['POST',   '#^/auth/logout$#',              'auth_logout'],
     ['PATCH',  '#^/group/section-order$#',      'group_section_order_update'],
     ['PATCH',  '#^/me/section-order$#',         'me_section_order_update'],
