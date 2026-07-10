@@ -122,6 +122,8 @@ export interface ConcertSummary {
   arrival_time?: string | null;
   venue_name: string | null;
   visibility: 'public' | 'private';
+  /** Date en option (pas encore confirmée) vs validée. */
+  is_option?: boolean;
   merch?: boolean;
   fee?: string | null;
   fee_guso?: boolean;

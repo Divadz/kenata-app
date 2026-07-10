@@ -442,7 +442,8 @@ code { font-family: var(--mono); font-size: 0.85em; color: var(--cyan); }
   padding: 0.3rem 0 0.2rem;
   background: color-mix(in srgb, var(--amber) 10%, var(--panel-2));
 }
-.date-tile .d { display: block; font-family: var(--mono); font-size: 1.5rem; font-weight: 700; color: var(--amber); line-height: 1; }
+.date-tile .wd { display: block; font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 1px; }
+.date-tile .d { display: block; font-family: var(--mono); font-size: 1.45rem; font-weight: 700; color: var(--amber); line-height: 1; }
 .date-tile .m { display: block; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-top: 2px; }
 .date-tile.tbd { border-color: var(--line); background: var(--panel-2); }
 .date-tile.tbd .d { font-size: 1.3rem; color: var(--muted); }
@@ -457,6 +458,11 @@ code { font-family: var(--mono); font-size: 0.85em; color: var(--cyan); }
 /* Variantes de badge : privé rouge, public vert, merch orange (base) */
 .badge.priv { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); }
 .badge.pub { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
+/* Badge « option » : pastille ambre pleine (statut, pas une catégorie). */
+.badge.option { color: var(--amber-ink); background: var(--amber); border-color: var(--amber); }
+/* Carte d'un concert en option : grisée, remise en avant au survol. */
+.ccard.is-option { opacity: 0.55; }
+.ccard.is-option:hover { opacity: 1; }
 
 /* ---- Import de métadonnées (Répertoire) ---- */
 .meta-candidate {

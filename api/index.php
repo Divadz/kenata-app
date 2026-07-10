@@ -948,6 +948,7 @@ function present_concert(array $row): array
     $row['poster_is_link'] = (bool) $row['poster_is_link'];
     $row['fee_guso'] = (bool) $row['fee_guso'];
     $row['merch'] = (bool) $row['merch'];
+    $row['is_option'] = (bool) $row['is_option'];
     $row['target_duration_min'] = $row['target_duration_min'] !== null ? (int) $row['target_duration_min'] : null;
     return $row;
 }
@@ -987,6 +988,9 @@ function sanitize_concert(array $b): array
     if (array_key_exists('merch', $b)) {
         $out['merch'] = !empty($b['merch']) ? 1 : 0;
     }
+    if (array_key_exists('is_option', $b)) {
+        $out['is_option'] = !empty($b['is_option']) ? 1 : 0;
+    }
     if (array_key_exists('visibility', $b)) {
         $out['visibility'] = ($b['visibility'] ?? '') === 'public' ? 'public' : 'private';
     }
@@ -1006,7 +1010,7 @@ function concerts_list(): never
 {
     Auth::requireMember();
     $stmt = db()->prepare(
-        "SELECT c.id, c.date, c.start_time, c.arrival_time, c.venue_name, c.visibility, c.merch,
+        "SELECT c.id, c.date, c.start_time, c.arrival_time, c.venue_name, c.visibility, c.is_option, c.merch,
             c.fee, c.fee_guso, c.target_duration_min, c.setlist_id,
             s.name AS setlist_name,
             (SELECT COALESCE(SUM(CASE WHEN i.type = 'song' THEN so.duration_sec ELSE i.est_duration_sec END), 0)
@@ -1019,6 +1023,7 @@ function concerts_list(): never
     $rows = array_map(function ($r) {
         $r['merch'] = (bool) $r['merch'];
         $r['fee_guso'] = (bool) $r['fee_guso'];
+        $r['is_option'] = (bool) $r['is_option'];
         return $r;
     }, $stmt->fetchAll());
     json_response($rows);
@@ -1107,14 +1112,14 @@ function concert_duplicate(string $id): never
         'INSERT INTO concerts
          (id, group_id, date, start_time, arrival_time, venue_name, poster_url, poster_is_link, target_duration_min, on_site, setlist_id,
           tech_sheet_url, address, maps_url, parking, greenroom, catering, fee, fee_guso, lodging,
-          visibility, merch, notes, contacts, ticket_links, roadmap, gear_checklist)
-         VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+          visibility, merch, notes, contacts, ticket_links, roadmap, gear_checklist, is_option)
+         VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     )->execute([
         $new, group_id(), $row['start_time'], $row['arrival_time'], trim(($row['venue_name'] ?? '') . ' (copie)'),
         $row['poster_url'], $row['poster_is_link'], $row['target_duration_min'], $row['on_site'], $row['setlist_id'],
         $row['tech_sheet_url'], $row['address'], $row['maps_url'], $row['parking'], $row['greenroom'],
         $row['catering'], $row['fee'], $row['fee_guso'], $row['lodging'], $row['visibility'], $row['merch'], $row['notes'],
-        $row['contacts'], $row['ticket_links'], $row['roadmap'], $row['gear_checklist'],
+        $row['contacts'], $row['ticket_links'], $row['roadmap'], $row['gear_checklist'], $row['is_option'],
     ]);
     json_response(['id' => $new], 201);
 }

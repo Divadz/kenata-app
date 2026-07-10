@@ -192,6 +192,17 @@ export function ConcertEditor() {
             <label className="row" style={{ gap: '0.3rem', whiteSpace: 'nowrap' }}>
               <input
                 type="checkbox"
+                checked={!!c.is_option}
+                onChange={(e) => {
+                  setField('is_option', e.target.checked);
+                  save({ is_option: e.target.checked });
+                }}
+              />{' '}
+              Option
+            </label>
+            <label className="row" style={{ gap: '0.3rem', whiteSpace: 'nowrap' }}>
+              <input
+                type="checkbox"
                 checked={c.visibility === 'private'}
                 onChange={(e) => {
                   const v = e.target.checked ? 'private' : 'public';
