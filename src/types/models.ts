@@ -158,3 +158,42 @@ export interface ConcertDetail extends ConcertSummary {
   /** Ids des éléments matos cochés pour ce concert (figés à la création depuis les défauts). */
   gear_checklist: string[] | null;
 }
+
+// --- Lot 4 : Booking / CRM de démarchage ---
+
+export type BookingStage =
+  | 'a_contacter'
+  | 'contacte'
+  | 'relance'
+  | 'en_discussion'
+  | 'confirme'
+  | 'refuse';
+
+export type ExchangeType = 'appel' | 'mail' | 'sms' | 'autre';
+
+export interface BookingExchange {
+  date: string;
+  type: ExchangeType;
+  text: string;
+}
+
+export interface BookingLead {
+  id: string;
+  name: string;
+  stage: BookingStage;
+  position: number;
+  city: string | null;
+  type: string | null;
+  contact_name: string | null;
+  link: string | null;
+  email: string | null;
+  phone: string | null;
+  est_fee: string | null;
+  capacity: number | null;
+  source: string | null;
+  next_relance_date: string | null;
+  next_relance_note: string | null;
+  notes: string | null;
+  exchanges: BookingExchange[];
+  concert_id: string | null;
+}

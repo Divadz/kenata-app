@@ -9,6 +9,7 @@ import { SetlistEditor } from './features/setlists/SetlistEditor';
 import { SharedSetlist } from './features/setlists/SharedSetlist';
 import { ConcertsPage } from './features/concerts/ConcertsPage';
 import { ConcertEditor } from './features/concerts/ConcertEditor';
+import { BookingPage } from './features/booking/BookingPage';
 import { MembersPage } from './features/members/MembersPage';
 import { GroupSettings } from './features/group/GroupSettings';
 
@@ -24,6 +25,7 @@ function AuthedApp() {
           <Route path="setlists/:id" element={<SetlistEditor />} />
           <Route path="concerts" element={<ConcertsPage />} />
           <Route path="concerts/:id" element={<ConcertEditor />} />
+          <Route path="booking" element={<BookingPage />} />
           <Route path="members" element={<MembersPage />} />
           <Route path="settings" element={<GroupSettings />} />
         </Route>

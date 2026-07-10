@@ -186,6 +186,36 @@ CREATE TABLE IF NOT EXISTS concerts (
   CONSTRAINT fk_concert_setlist FOREIGN KEY (setlist_id) REFERENCES setlists(id)  ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Booking / CRM de démarchage (Lot 4). Pipeline de prospection des dates ;
+-- une piste confirmée peut engendrer un concert (concert_id).
+CREATE TABLE IF NOT EXISTS booking_leads (
+  id                 CHAR(36)     NOT NULL,
+  group_id           VARCHAR(64)  NOT NULL,
+  name               VARCHAR(255) NOT NULL,
+  stage              ENUM('a_contacter','contacte','relance','en_discussion','confirme','refuse') NOT NULL DEFAULT 'a_contacter',
+  position           INT          NOT NULL DEFAULT 0,
+  city               VARCHAR(255) NULL,
+  type               VARCHAR(120) NULL,
+  contact_name       VARCHAR(255) NULL,
+  link               VARCHAR(1024) NULL,
+  email              VARCHAR(255) NULL,
+  phone              VARCHAR(64)  NULL,
+  est_fee            VARCHAR(255) NULL,
+  capacity           INT          NULL,
+  source             VARCHAR(255) NULL,
+  next_relance_date  DATE         NULL,
+  next_relance_note  VARCHAR(255) NULL,
+  notes              TEXT         NULL,
+  exchanges          JSON         NULL,
+  concert_id         CHAR(36)     NULL,
+  created_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_group_stage (group_id, stage),
+  CONSTRAINT fk_lead_group   FOREIGN KEY (group_id)   REFERENCES app_group(id) ON DELETE CASCADE,
+  CONSTRAINT fk_lead_concert FOREIGN KEY (concert_id) REFERENCES concerts(id)  ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Amorçage du groupe unique (renseigne l'id depuis la config : ex. 'kenata').
 INSERT INTO app_group (id, name) VALUES ('kenata', 'Kenata')
   ON DUPLICATE KEY UPDATE name = name;

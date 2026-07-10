@@ -526,6 +526,148 @@ code { font-family: var(--mono); font-size: 0.85em; color: var(--cyan); }
 .install-pop-body strong { font-size: 0.92rem; }
 .install-pop-x { flex: none; }
 
+/* ---- Booking / CRM (Lot 4) ---- */
+/* Modale générique */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 1.2rem;
+  overflow-y: auto;
+}
+.modal {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--amber);
+  border-radius: var(--radius);
+  width: min(680px, 100%);
+  padding: 1rem 1.1rem;
+  margin: auto;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+}
+.lead-title {
+  font-family: var(--display);
+  font-size: 1.25rem;
+  letter-spacing: 0.02em;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  flex: 1;
+  padding: 0.2rem 0.1rem;
+}
+.lead-title:focus { border-color: var(--cyan); }
+
+/* Pastilles / badges de statut */
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--muted); vertical-align: middle; }
+.dot.st-todo, .badge.st-todo { color: var(--muted); }
+.dot.st-contacte { background: var(--cyan); }
+.dot.st-relance { background: var(--amber); }
+.dot.st-discussion { background: #e0743c; }
+.badge.st-contacte { color: var(--cyan); border-color: color-mix(in srgb, var(--cyan) 40%, var(--line)); }
+.badge.st-relance, .badge.st-discussion { color: var(--amber); border-color: color-mix(in srgb, var(--amber) 40%, var(--line)); }
+.badge.st-confirme { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
+.badge.st-refuse { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); }
+.badge.relance { color: var(--cyan); border-color: color-mix(in srgb, var(--cyan) 40%, var(--line)); margin-left: 0; cursor: pointer; }
+.badge.relance.late { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); }
+
+.relance-bar { padding: 0.55rem 0.7rem; }
+
+/* Bloc « prochaine relance » de la fiche */
+.relance-box {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  background: color-mix(in srgb, var(--amber) 8%, var(--panel-2));
+  border: 1px solid color-mix(in srgb, var(--amber) 30%, var(--line));
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.6rem;
+}
+.relance-box .lbl { color: var(--muted); font-size: 0.85rem; }
+.relance-box .grow { flex: 1; min-width: 120px; }
+
+/* Kanban */
+.kanban {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(228px, 1fr);
+  gap: 0.6rem;
+  overflow-x: auto;
+  padding-bottom: 0.3rem;
+}
+.kcol {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.55rem;
+  min-height: 120px;
+  transition: border-color 0.12s, background 0.12s;
+}
+.kcol.over { border-color: var(--amber); background: color-mix(in srgb, var(--amber) 7%, var(--panel-2)); }
+.kcol-head { display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; font-weight: 600; padding: 0.1rem 0.2rem 0.5rem; }
+.kcol-head .muted { margin-left: auto; }
+.kcol-body { display: flex; flex-direction: column; gap: 0.4rem; }
+.lead-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.6rem;
+  cursor: grab;
+  touch-action: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  transition: border-color 0.12s, box-shadow 0.12s, transform 0.12s;
+}
+.lead-card.dragging {
+  border-color: var(--amber);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
+  transform: scale(1.02);
+  cursor: grabbing;
+}
+.lead-name { font-weight: 700; line-height: 1.15; }
+.lead-card .badge.relance { align-self: flex-start; }
+.btn.ghost { background: transparent; border-style: dashed; color: var(--muted); }
+.btn.ghost:hover { color: var(--text); border-color: var(--amber); }
+
+/* Zones d'issue */
+.issue { transition: border-color 0.12s, background 0.12s; }
+.issue.over { border-color: var(--amber); background: color-mix(in srgb, var(--amber) 7%, var(--panel)); }
+.issue.confirme h3 { color: var(--ok); }
+.issue.refuse h3 { color: var(--danger); }
+.lead-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.55rem;
+  color: var(--text);
+  cursor: pointer;
+  margin-top: 0.35rem;
+}
+.lead-chip:hover { border-color: var(--amber); }
+.lead-chip .badge { margin-left: auto; }
+
+/* Historique des échanges */
+.exchange-log { list-style: none; margin: 0.4rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.exchange-log li { display: flex; align-items: baseline; gap: 0.5rem; font-size: 0.85rem; }
+.ex-icon { flex: none; }
+.ex-date { color: var(--muted); flex: none; }
+.ex-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+
+/* Ligne de tableau cliquable */
+.row-link { cursor: pointer; }
+.row-link:hover { background: var(--panel-2); }
+
 /* ---- Mouvement réduit ---- */
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }

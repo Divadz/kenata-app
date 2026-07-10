@@ -1241,6 +1241,196 @@ function gear_item_delete(string $id): never
 }
 
 // ---------------------------------------------------------------------------
+// Booking / CRM de démarchage (Lot 4)
+// ---------------------------------------------------------------------------
+
+const LEAD_STAGES = ['a_contacter', 'contacte', 'relance', 'en_discussion', 'confirme', 'refuse'];
+const EXCHANGE_TYPES = ['appel', 'mail', 'sms', 'autre'];
+const LEAD_STRS = [
+    'name' => 255, 'city' => 255, 'type' => 120, 'contact_name' => 255,
+    'link' => 1024, 'email' => 255, 'phone' => 64, 'est_fee' => 255,
+    'source' => 255, 'next_relance_note' => 255,
+];
+
+function sanitize_exchange(mixed $e): ?array
+{
+    if (!is_array($e)) {
+        return null;
+    }
+    $text = trim((string) ($e['text'] ?? ''));
+    if ($text === '') {
+        return null;
+    }
+    $date = trim((string) ($e['date'] ?? ''));
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+        $date = date('Y-m-d');
+    }
+    $type = in_array($e['type'] ?? '', EXCHANGE_TYPES, true) ? $e['type'] : 'autre';
+    return ['date' => $date, 'type' => $type, 'text' => mb_substr($text, 0, 2000)];
+}
+
+function sanitize_lead(array $b): array
+{
+    $out = [];
+    foreach (LEAD_STRS as $k => $max) {
+        if (array_key_exists($k, $b)) {
+            $out[$k] = nullable_str($b[$k], $max);
+        }
+    }
+    if (array_key_exists('stage', $b)) {
+        $out['stage'] = in_array($b['stage'] ?? '', LEAD_STAGES, true) ? $b['stage'] : 'a_contacter';
+    }
+    if (array_key_exists('position', $b)) {
+        $out['position'] = (int) ($b['position'] ?? 0);
+    }
+    if (array_key_exists('capacity', $b)) {
+        $out['capacity'] = nullable_int($b['capacity']);
+    }
+    if (array_key_exists('next_relance_date', $b)) {
+        $d = trim((string) ($b['next_relance_date'] ?? ''));
+        $out['next_relance_date'] = preg_match('/^\d{4}-\d{2}-\d{2}$/', $d) ? $d : null;
+    }
+    if (array_key_exists('notes', $b)) {
+        $n = trim((string) ($b['notes'] ?? ''));
+        $out['notes'] = $n === '' ? null : $n;
+    }
+    if (array_key_exists('exchanges', $b)) {
+        $ex = is_array($b['exchanges'])
+            ? array_values(array_filter(array_map('sanitize_exchange', $b['exchanges'])))
+            : [];
+        $out['exchanges'] = json_encode($ex, JSON_UNESCAPED_UNICODE);
+    }
+    return $out;
+}
+
+function present_lead(array $r): array
+{
+    $r['exchanges'] = isset($r['exchanges']) && $r['exchanges'] !== null ? json_decode($r['exchanges'], true) : [];
+    $r['capacity'] = $r['capacity'] !== null ? (int) $r['capacity'] : null;
+    $r['position'] = (int) $r['position'];
+    return $r;
+}
+
+function require_lead(string $id): array
+{
+    $stmt = db()->prepare('SELECT * FROM booking_leads WHERE id = ? AND group_id = ?');
+    $stmt->execute([$id, group_id()]);
+    $row = $stmt->fetch();
+    if (!$row) {
+        json_response(['error' => 'not_found'], 404);
+    }
+    return $row;
+}
+
+function booking_list(): never
+{
+    Auth::requireMember();
+    // Board = tout sauf « refuse » ; ?archived=1 => uniquement les refusées.
+    $archived = ($_GET['archived'] ?? '') === '1';
+    $op = $archived ? '=' : '<>';
+    $stmt = db()->prepare(
+        "SELECT * FROM booking_leads WHERE group_id = ? AND stage $op 'refuse' ORDER BY position, updated_at DESC"
+    );
+    $stmt->execute([group_id()]);
+    json_response(array_map('present_lead', $stmt->fetchAll()));
+}
+
+function booking_create(): never
+{
+    Auth::requireMember();
+    Auth::enforceCsrf();
+    $fields = sanitize_lead(read_json());
+    if (empty($fields['name'])) {
+        json_response(['error' => 'name_required'], 422);
+    }
+    $stage = $fields['stage'] ?? 'a_contacter';
+    $fields['stage'] = $stage;
+    // Position en fin de colonne cible.
+    $pos = db()->prepare('SELECT COALESCE(MAX(position) + 1, 0) FROM booking_leads WHERE group_id = ? AND stage = ?');
+    $pos->execute([group_id(), $stage]);
+    $fields['position'] = (int) $pos->fetchColumn();
+    $fields['id'] = uuidv4();
+    $fields['group_id'] = group_id();
+    $cols = array_keys($fields);
+    $sql = 'INSERT INTO booking_leads (' . implode(', ', $cols) . ') VALUES (:' . implode(', :', $cols) . ')';
+    db()->prepare($sql)->execute($fields);
+    json_response(['id' => $fields['id']], 201);
+}
+
+function booking_get(string $id): never
+{
+    Auth::requireMember();
+    json_response(present_lead(require_lead($id)));
+}
+
+function booking_update(string $id): never
+{
+    Auth::requireMember();
+    Auth::enforceCsrf();
+    require_lead($id);
+    $fields = sanitize_lead(read_json());
+    if (!$fields) {
+        json_response(['ok' => true]);
+    }
+    $set = implode(', ', array_map(fn ($c) => "$c = :$c", array_keys($fields)));
+    $stmt = db()->prepare("UPDATE booking_leads SET $set, updated_at = NOW() WHERE id = :id AND group_id = :group_id");
+    $stmt->execute($fields + ['id' => $id, 'group_id' => group_id()]);
+    json_response(['ok' => true]);
+}
+
+function booking_delete(string $id): never
+{
+    Auth::requireMember();
+    Auth::enforceCsrf();
+    db()->prepare('DELETE FROM booking_leads WHERE id = ? AND group_id = ?')->execute([$id, group_id()]);
+    json_response(['ok' => true]);
+}
+
+/** Transforme une piste en concert (pré-remplissage) et lie les deux. Idempotent. */
+function booking_confirm(string $id): never
+{
+    Auth::requireMember();
+    Auth::enforceCsrf();
+    $lead = require_lead($id);
+    if (!empty($lead['concert_id'])) {
+        json_response(['id' => $lead['concert_id'], 'existing' => true]);
+    }
+    $newId = uuidv4();
+    $g = db()->prepare('SELECT id FROM gear_items WHERE group_id = ? AND default_checked = 1');
+    $g->execute([group_id()]);
+    $gearJson = json_encode(array_column($g->fetchAll(), 'id'));
+
+    $org = array_filter([
+        'name'  => $lead['contact_name'] ?: null,
+        'phone' => $lead['phone'] ?: null,
+        'email' => $lead['email'] ?: null,
+    ]);
+    $contacts = $org ? json_encode(['org' => $org], JSON_UNESCAPED_UNICODE) : null;
+
+    $notes = $lead['notes'];
+    $extra = [];
+    if (!empty($lead['capacity'])) {
+        $extra[] = 'Jauge : ' . $lead['capacity'];
+    }
+    if (!empty($lead['source'])) {
+        $extra[] = 'Source : ' . $lead['source'];
+    }
+    if ($extra) {
+        $notes = trim(($notes ? $notes . "\n" : '') . implode(' · ', $extra));
+    }
+
+    db()->prepare(
+        'INSERT INTO concerts (id, group_id, venue_name, address, fee, target_duration_min, notes, contacts, gear_checklist)
+         VALUES (?, ?, ?, ?, ?, 120, ?, ?, ?)'
+    )->execute([$newId, group_id(), $lead['name'], $lead['city'], $lead['est_fee'], $notes, $contacts, $gearJson]);
+
+    db()->prepare('UPDATE booking_leads SET concert_id = ?, stage = ?, updated_at = NOW() WHERE id = ? AND group_id = ?')
+        ->execute([$newId, 'confirme', $id, group_id()]);
+
+    json_response(['id' => $newId], 201);
+}
+
+// ---------------------------------------------------------------------------
 // Routage
 // ---------------------------------------------------------------------------
 
@@ -1305,6 +1495,13 @@ $routes = [
     ['POST',   '#^/gear-items$#',               'gear_items_create'],
     ['PATCH',  '#^/gear-items/([^/]+)$#',       'gear_item_update'],
     ['DELETE', '#^/gear-items/([^/]+)$#',       'gear_item_delete'],
+
+    ['GET',    '#^/booking$#',                  'booking_list'],
+    ['POST',   '#^/booking$#',                  'booking_create'],
+    ['GET',    '#^/booking/([^/]+)$#',          'booking_get'],
+    ['PATCH',  '#^/booking/([^/]+)$#',          'booking_update'],
+    ['DELETE', '#^/booking/([^/]+)$#',          'booking_delete'],
+    ['POST',   '#^/booking/([^/]+)/confirm$#',  'booking_confirm'],
 ];
 
 try {
