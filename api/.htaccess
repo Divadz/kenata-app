@@ -8,6 +8,6 @@ RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.php [QSA,L]
 
 # Interdit l'accès direct à la config et aux libs si elles étaient dans le webroot.
-<FilesMatch "^(config|bootstrap)\.php$">
+<FilesMatch "^(config(\.keys)?|bootstrap)\.php$">
   Require all denied
 </FilesMatch>

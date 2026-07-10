@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { SetlistItem } from '../../types/models';
 import { formatDuration, formatHM, parseDuration } from '../../utils/duration';
 import { DurationSelect } from '../../components/DurationSelect';
@@ -7,7 +7,9 @@ import { useSongs } from '../repertoire/useSongs';
 import { MOODS, type MoodId, moodLabel, randomPhrase } from './souffleur';
 import {
   createShare,
+  deleteSetlist,
   deleteShare,
+  duplicateSetlist,
   getSetlist,
   itemDuration,
   putItems,
@@ -22,6 +24,7 @@ const newKey = () => `k${keyCounter++}`;
 
 export function SetlistEditor() {
   const { id = '' } = useParams();
+  const navigate = useNavigate();
   const { songs } = useSongs();
 
   const [name, setName] = useState('');
@@ -32,10 +35,14 @@ export function SetlistEditor() {
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [songToAdd, setSongToAdd] = useState('');
   const [mood, setMood] = useState<MoodId>('badass');
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const itemsRef = useRef<EditItem[]>([]);
   itemsRef.current = items;
-  const dragFrom = useRef<number | null>(null);
+  // Réordonnancement par glissement (souris + tactile via Pointer Events).
+  const rowRefs = useRef(new Map<string, HTMLElement>());
+  const draggingKeyRef = useRef<string | null>(null);
+  const [draggingKey, setDraggingKey] = useState<string | null>(null);
 
   useEffect(() => {
     getSetlist(id)
@@ -62,13 +69,43 @@ export function SetlistEditor() {
       .catch(() => setSavedAt('Erreur d’enregistrement'));
   }
 
-  function move(from: number, to: number) {
-    if (to < 0 || to >= items.length || from === to) return;
-    const next = [...items];
-    const [m] = next.splice(from, 1);
-    next.splice(to, 0, m);
-    commit(next);
+  // --- Réordonnancement par glissement (Pointer Events : souris + tactile) ---
+  function onHandleDown(e: ReactPointerEvent<HTMLElement>, key: string) {
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    draggingKeyRef.current = key;
+    setDraggingKey(key);
   }
+
+  function onHandleMove(e: ReactPointerEvent<HTMLElement>) {
+    const key = draggingKeyRef.current;
+    if (key === null) return;
+    const y = e.clientY;
+    const cur = itemsRef.current;
+    const dragged = cur.find((it) => it._key === key);
+    if (!dragged) return;
+    const others = cur.filter((it) => it._key !== key);
+    // Position d'insertion = nb de lignes dont le milieu est au-dessus du curseur.
+    let insert = others.length;
+    for (let idx = 0; idx < others.length; idx++) {
+      const rect = rowRefs.current.get(others[idx]._key)?.getBoundingClientRect();
+      if (rect && y < rect.top + rect.height / 2) {
+        insert = idx;
+        break;
+      }
+    }
+    const next = [...others.slice(0, insert), dragged, ...others.slice(insert)];
+    if (next.some((it, i) => it._key !== cur[i]._key)) setItems(next);
+  }
+
+  function onHandleUp(e: ReactPointerEvent<HTMLElement>) {
+    if (draggingKeyRef.current === null) return;
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+    draggingKeyRef.current = null;
+    setDraggingKey(null);
+    persistFromRef(); // enregistre le nouvel ordre
+  }
+
 
   function removeAt(i: number) {
     commit(items.filter((_, idx) => idx !== i));
@@ -159,7 +196,31 @@ export function SetlistEditor() {
         <Link className="btn small" to="/setlists">
           ← Setlists
         </Link>
-        {savedAt && <span className="muted small">{savedAt}</span>}
+        <span className="row">
+          {savedAt && <span className="muted small">{savedAt}</span>}
+          <button
+            className="btn small"
+            onClick={async () => {
+              const { id: nid } = await duplicateSetlist(id);
+              navigate(`/setlists/${nid}`);
+            }}
+          >
+            Dupliquer
+          </button>
+          <button
+            className="btn small danger"
+            onClick={async () => {
+              if (confirmDelete) {
+                await deleteSetlist(id);
+                navigate('/setlists');
+              } else {
+                setConfirmDelete(true);
+              }
+            }}
+          >
+            {confirmDelete ? 'Confirmer' : 'Supprimer'}
+          </button>
+        </span>
       </div>
 
       <div className="grid2 full">
@@ -232,17 +293,21 @@ export function SetlistEditor() {
             <li key={it._key}>
               {tuningChange && <div className="tuning-change mono">↧ accordage {tuningChange}</div>}
               <div
-                className={`sl-item ${it.type}`}
-                draggable
-                onDragStart={() => (dragFrom.current = i)}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => {
-                  const from = dragFrom.current;
-                  dragFrom.current = null;
-                  if (from !== null) move(from, i);
+                ref={(el) => {
+                  const m = rowRefs.current;
+                  if (el) m.set(it._key, el);
+                  else m.delete(it._key);
                 }}
+                className={`sl-item ${it.type}${draggingKey === it._key ? ' dragging' : ''}`}
               >
-                <span className="sl-handle" aria-hidden="true">
+                <span
+                  className="sl-handle"
+                  role="button"
+                  aria-label="Déplacer pour réordonner"
+                  onPointerDown={(e) => onHandleDown(e, it._key)}
+                  onPointerMove={onHandleMove}
+                  onPointerUp={onHandleUp}
+                >
                   ⠿
                 </span>
                 <span className="sl-num mono">{i + 1}</span>
@@ -290,12 +355,6 @@ export function SetlistEditor() {
 
                 <span className="sl-dur mono">{formatDuration(itemDuration(it))}</span>
                 <span className="sl-actions">
-                  <button className="btn small" aria-label="Monter" onClick={() => move(i, i - 1)}>
-                    ↑
-                  </button>
-                  <button className="btn small" aria-label="Descendre" onClick={() => move(i, i + 1)}>
-                    ↓
-                  </button>
                   <button className="btn small danger" aria-label="Retirer" onClick={() => removeAt(i)}>
                     ✕
                   </button>
@@ -327,6 +386,7 @@ export function SetlistEditor() {
           </button>
         )}
       </div>
+
     </section>
   );
 }

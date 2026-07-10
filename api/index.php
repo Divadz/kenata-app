@@ -502,6 +502,146 @@ function songs_delete(string $id): never
     json_response(['ok' => true]);
 }
 
+// ---------------------------------------------------------------------------
+// Métadonnées de morceaux (fournisseurs externes : Deezer + GetSongBPM)
+// ---------------------------------------------------------------------------
+
+/** Tonalités acceptées (miroir de src/features/repertoire/constants.ts). */
+const MUSIC_KEYS = [
+    'A', 'Am', 'A#', 'A#m', 'Bb', 'Bbm',
+    'B', 'Bm',
+    'C', 'Cm', 'C#', 'C#m', 'Db', 'Dbm',
+    'D', 'Dm', 'D#', 'D#m', 'Eb', 'Ebm',
+    'E', 'Em',
+    'F', 'Fm', 'F#', 'F#m', 'Gb', 'Gbm',
+    'G', 'Gm', 'G#', 'G#m', 'Ab', 'Abm',
+];
+
+/** GET JSON via cURL. Renvoie le tableau décodé ou null. */
+function http_get_json(string $url): ?array
+{
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 10,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_USERAGENT      => 'kenata-app/1.0',
+    ]);
+    $out = curl_exec($ch);
+    curl_close($ch);
+    if (!is_string($out)) {
+        return null;
+    }
+    $data = json_decode($out, true);
+    return is_array($data) ? $data : null;
+}
+
+/** Normalise une tonalité GetSongBPM vers la notation du répertoire (C, Cm, C#, Db…). */
+function normalize_music_key(?string $raw): ?string
+{
+    if ($raw === null) {
+        return null;
+    }
+    $s = str_replace(['♯', '♭'], ['#', 'b'], trim($raw));
+    if ($s === '') {
+        return null;
+    }
+    $minor = str_ends_with($s, 'm') || (bool) preg_match('/min/i', $s);
+    if (!preg_match('/^([A-Ga-g])([#b]?)/', $s, $m)) {
+        return null;
+    }
+    $candidate = strtoupper($m[1]) . $m[2] . ($minor ? 'm' : '');
+    return in_array($candidate, MUSIC_KEYS, true) ? $candidate : null;
+}
+
+/**
+ * Recherche de candidats via Deezer (titre, artiste, album, pochette, durée).
+ * Permet de choisir la bonne version avant l'import.
+ */
+function metadata_search(): never
+{
+    Auth::requireMember();
+    $title  = trim((string) ($_GET['title'] ?? ''));
+    $artist = trim((string) ($_GET['artist'] ?? ''));
+    if ($title === '') {
+        json_response(['error' => 'title_required'], 422);
+    }
+
+    $safe = fn (string $v): string => str_replace('"', '', $v);
+    $q = $artist !== ''
+        ? 'artist:"' . $safe($artist) . '" track:"' . $safe($title) . '"'
+        : 'track:"' . $safe($title) . '"';
+    $data = http_get_json('https://api.deezer.com/search?limit=8&q=' . rawurlencode($q));
+
+    // Repli en recherche libre si l'avancée ne donne rien.
+    if (empty($data['data'])) {
+        $data = http_get_json('https://api.deezer.com/search?limit=8&q=' . rawurlencode(trim("$title $artist")));
+    }
+
+    $out = [];
+    foreach (($data['data'] ?? []) as $t) {
+        $out[] = [
+            'title'        => (string) ($t['title'] ?? ''),
+            'artist'       => (string) ($t['artist']['name'] ?? ''),
+            'album'        => (string) ($t['album']['title'] ?? ''),
+            'cover'        => (string) ($t['album']['cover_medium'] ?? ''),
+            'duration_sec' => (int) ($t['duration'] ?? 0),
+        ];
+    }
+    json_response($out);
+}
+
+/**
+ * Tonalité + tempo via GetSongBPM pour un couple (titre, artiste).
+ * Nécessite une clé API (config `getsongbpm.api_key`).
+ */
+function metadata_audio(): never
+{
+    Auth::requireMember();
+    $key = (string) config('getsongbpm.api_key', '');
+    if ($key === '') {
+        json_response(['configured' => false, 'bpm' => null, 'music_key' => null, 'key_raw' => null]);
+    }
+    $title  = trim((string) ($_GET['title'] ?? ''));
+    $artist = trim((string) ($_GET['artist'] ?? ''));
+    if ($title === '') {
+        json_response(['error' => 'title_required'], 422);
+    }
+
+    $lookup = 'song:' . $title . ($artist !== '' ? ' artist:' . $artist : '');
+    $data = http_get_json(
+        'https://api.getsong.co/search/?api_key=' . rawurlencode($key)
+        . '&type=both&lookup=' . rawurlencode($lookup)
+    );
+
+    $first = $data['search'][0] ?? null;
+    $tempo = null;
+    $keyOf = null;
+    if (is_array($first)) {
+        $tempo = $first['tempo'] ?? null;
+        $keyOf = $first['key_of'] ?? null;
+        // La recherche n'inclut pas toujours tempo/tonalité : on récupère le détail.
+        if (($tempo === null || $keyOf === null) && !empty($first['id'])) {
+            $detail = http_get_json(
+                'https://api.getsong.co/song/?api_key=' . rawurlencode($key)
+                . '&id=' . rawurlencode((string) $first['id'])
+            );
+            $song = $detail['song'] ?? null;
+            if (is_array($song)) {
+                $tempo ??= $song['tempo'] ?? null;
+                $keyOf ??= $song['key_of'] ?? null;
+            }
+        }
+    }
+
+    json_response([
+        'configured' => true,
+        'bpm'        => is_numeric($tempo) ? (int) $tempo : null,
+        'music_key'  => normalize_music_key(is_string($keyOf) ? $keyOf : null),
+        'key_raw'    => is_string($keyOf) && trim($keyOf) !== '' ? trim($keyOf) : null,
+    ]);
+}
+
 function songs_import(): never
 {
     Auth::requireMember();
@@ -642,6 +782,42 @@ function setlist_delete(string $id): never
     Auth::enforceCsrf();
     db()->prepare('DELETE FROM setlists WHERE id = ? AND group_id = ?')->execute([$id, group_id()]);
     json_response(['ok' => true]);
+}
+
+function setlist_duplicate(string $id): never
+{
+    Auth::requireMember();
+    Auth::enforceCsrf();
+    $sl = require_setlist($id);
+    $new = uuidv4();
+    $pdo = db();
+    try {
+        $pdo->beginTransaction();
+        $pdo->prepare('INSERT INTO setlists (id, group_id, name, target_duration_min) VALUES (?, ?, ?, ?)')
+            ->execute([$new, group_id(), trim(($sl['name'] ?? '') . ' (copie)'), $sl['target_duration_min']]);
+        // Copie des éléments dans l'ordre (sans le lien de partage).
+        $src = $pdo->prepare(
+            'SELECT position, type, song_id, label, est_duration_sec, souffleur_text, souffleur_mood
+             FROM setlist_items WHERE setlist_id = ? ORDER BY position'
+        );
+        $src->execute([$id]);
+        $ins = $pdo->prepare(
+            'INSERT INTO setlist_items
+             (id, setlist_id, position, type, song_id, label, est_duration_sec, souffleur_text, souffleur_mood)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        );
+        foreach ($src->fetchAll() as $it) {
+            $ins->execute([
+                uuidv4(), $new, $it['position'], $it['type'], $it['song_id'],
+                $it['label'], $it['est_duration_sec'], $it['souffleur_text'], $it['souffleur_mood'],
+            ]);
+        }
+        $pdo->commit();
+    } catch (Throwable $e) {
+        $pdo->rollBack();
+        throw $e;
+    }
+    json_response(['id' => $new], 201);
 }
 
 function sanitize_setlist_item(array $it): array
@@ -792,6 +968,10 @@ function sanitize_concert(array $b): array
         $s = trim((string) ($b['start_time'] ?? ''));
         $out['start_time'] = preg_match('/^\d{2}:\d{2}$/', $s) ? $s : null;
     }
+    if (array_key_exists('arrival_time', $b)) {
+        $s = trim((string) ($b['arrival_time'] ?? ''));
+        $out['arrival_time'] = preg_match('/^\d{2}:\d{2}$/', $s) ? $s : null;
+    }
     if (array_key_exists('target_duration_min', $b)) {
         $out['target_duration_min'] = nullable_int($b['target_duration_min']);
     }
@@ -826,7 +1006,7 @@ function concerts_list(): never
 {
     Auth::requireMember();
     $stmt = db()->prepare(
-        "SELECT c.id, c.date, c.start_time, c.venue_name, c.visibility, c.merch,
+        "SELECT c.id, c.date, c.start_time, c.arrival_time, c.venue_name, c.visibility, c.merch,
             c.fee, c.fee_guso, c.target_duration_min, c.setlist_id,
             s.name AS setlist_name,
             (SELECT COALESCE(SUM(CASE WHEN i.type = 'song' THEN so.duration_sec ELSE i.est_duration_sec END), 0)
@@ -858,8 +1038,9 @@ function concerts_create(): never
     $stmt = db()->prepare('SELECT id FROM gear_items WHERE group_id = ? AND default_checked = 1');
     $stmt->execute([group_id()]);
     $defaults = array_column($stmt->fetchAll(), 'id');
-    db()->prepare('INSERT INTO concerts (id, group_id, date, venue_name, gear_checklist) VALUES (?, ?, ?, ?, ?)')
-        ->execute([$id, group_id(), $date, nullable_str($b['venue_name'] ?? '', 255), json_encode($defaults)]);
+    // Durée cible par défaut : 02h00 (120 min).
+    db()->prepare('INSERT INTO concerts (id, group_id, date, venue_name, target_duration_min, gear_checklist) VALUES (?, ?, ?, ?, ?, ?)')
+        ->execute([$id, group_id(), $date, nullable_str($b['venue_name'] ?? '', 255), 120, json_encode($defaults)]);
     json_response(['id' => $id], 201);
 }
 
@@ -924,12 +1105,12 @@ function concert_duplicate(string $id): never
     $new = uuidv4();
     db()->prepare(
         'INSERT INTO concerts
-         (id, group_id, date, start_time, venue_name, poster_url, poster_is_link, target_duration_min, on_site, setlist_id,
+         (id, group_id, date, start_time, arrival_time, venue_name, poster_url, poster_is_link, target_duration_min, on_site, setlist_id,
           tech_sheet_url, address, maps_url, parking, greenroom, catering, fee, fee_guso, lodging,
           visibility, merch, notes, contacts, ticket_links, roadmap, gear_checklist)
-         VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+         VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     )->execute([
-        $new, group_id(), $row['start_time'], trim(($row['venue_name'] ?? '') . ' (copie)'),
+        $new, group_id(), $row['start_time'], $row['arrival_time'], trim(($row['venue_name'] ?? '') . ' (copie)'),
         $row['poster_url'], $row['poster_is_link'], $row['target_duration_min'], $row['on_site'], $row['setlist_id'],
         $row['tech_sheet_url'], $row['address'], $row['maps_url'], $row['parking'], $row['greenroom'],
         $row['catering'], $row['fee'], $row['fee_guso'], $row['lodging'], $row['visibility'], $row['merch'], $row['notes'],
@@ -1092,11 +1273,15 @@ $routes = [
     ['PATCH',  '#^/songs/([^/]+)$#',            'songs_update'],
     ['DELETE', '#^/songs/([^/]+)$#',            'songs_delete'],
 
+    ['GET',    '#^/metadata/search$#',          'metadata_search'],
+    ['GET',    '#^/metadata/audio$#',           'metadata_audio'],
+
     ['GET',    '#^/setlists$#',                 'setlists_list'],
     ['POST',   '#^/setlists$#',                 'setlists_create'],
     ['GET',    '#^/setlists/([^/]+)$#',         'setlist_get'],
     ['PATCH',  '#^/setlists/([^/]+)$#',         'setlist_update'],
     ['DELETE', '#^/setlists/([^/]+)$#',         'setlist_delete'],
+    ['POST',   '#^/setlists/([^/]+)/duplicate$#', 'setlist_duplicate'],
     ['PUT',    '#^/setlists/([^/]+)/items$#',   'setlist_items_put'],
     ['POST',   '#^/setlists/([^/]+)/share$#',   'setlist_share_create'],
     ['DELETE', '#^/setlists/([^/]+)/share$#',   'setlist_share_delete'],

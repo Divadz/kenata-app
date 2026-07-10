@@ -307,9 +307,31 @@ code { font-family: var(--mono); font-size: 0.85em; color: var(--cyan); }
   border-radius: var(--radius-sm);
   padding: 0.5rem 0.6rem;
 }
+.sl-item { transition: border-color 0.12s, box-shadow 0.12s, transform 0.12s, background 0.12s; }
 .sl-item.souffleur { border-left: 3px solid var(--amber); }
 .sl-item.free { border-left: 3px solid var(--muted); }
-.sl-handle { cursor: grab; color: var(--muted); user-select: none; }
+/* Ligne en cours de déplacement : surélevée et mise en évidence. */
+.sl-item.dragging {
+  border-color: var(--amber);
+  background: color-mix(in srgb, var(--amber) 8%, var(--panel));
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
+  transform: scale(1.015);
+  position: relative;
+  z-index: 3;
+}
+.sl-handle {
+  cursor: grab;
+  color: var(--muted);
+  user-select: none;
+  touch-action: none; /* au tactile : saisir la poignée ne fait pas défiler la page */
+  font-size: 1.15rem;
+  line-height: 1;
+  padding: 0.25rem 0.4rem;
+  margin: -0.25rem 0;
+  border-radius: 5px;
+}
+.sl-handle:hover { color: var(--text); background: var(--panel-2); }
+.sl-item.dragging .sl-handle { cursor: grabbing; }
 .sl-num { color: var(--amber); min-width: 1.6rem; text-align: right; }
 .sl-body { flex: 1; min-width: 0; }
 .sl-title { font-weight: 600; }
@@ -383,8 +405,8 @@ code { font-family: var(--mono); font-size: 0.85em; color: var(--cyan); }
 /* Chip en lecture seule (rappel dans Essentiel) */
 .chip.ro { cursor: default; }
 
-/* Stepper de durée */
-.stepper { display: inline-flex; align-items: center; gap: 0.4rem; }
+/* Stepper de durée — même hauteur qu'un input pour s'aligner avec les champs voisins. */
+.stepper { display: inline-flex; align-items: center; gap: 0.4rem; min-height: calc(0.9rem * 1.2 + 1rem + 2px); }
 .stepper .btn.small {
   width: 2rem;
   padding: 0.3rem 0;
@@ -407,6 +429,68 @@ code { font-family: var(--mono); font-size: 0.85em; color: var(--cyan); }
 .onboard-list a { color: var(--text); }
 .onboard-list a:hover { color: var(--amber); }
 .onboard-check { color: var(--cyan); }
+
+/* ---- Cartes concert (Lot 3) ---- */
+.ccard { display: flex; flex-direction: column; gap: 0.55rem; padding: 0.9rem; }
+.ccard-top { display: flex; gap: 0.7rem; align-items: flex-start; }
+.date-tile {
+  flex: none;
+  width: 52px;
+  text-align: center;
+  border: 1px solid color-mix(in srgb, var(--amber) 45%, var(--line));
+  border-radius: 8px;
+  padding: 0.3rem 0 0.2rem;
+  background: color-mix(in srgb, var(--amber) 10%, var(--panel-2));
+}
+.date-tile .d { display: block; font-family: var(--mono); font-size: 1.5rem; font-weight: 700; color: var(--amber); line-height: 1; }
+.date-tile .m { display: block; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-top: 2px; }
+.date-tile.tbd { border-color: var(--line); background: var(--panel-2); }
+.date-tile.tbd .d { font-size: 1.3rem; color: var(--muted); }
+.ccard-head { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.ccard-venue { font-weight: 700; font-size: 1.05rem; line-height: 1.15; overflow-wrap: anywhere; }
+.ccard-badges { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+.ccard-badges .badge { margin-left: 0; }
+.ccard-count { color: var(--muted); font-size: 0.82rem; }
+.ccard-data { display: flex; flex-wrap: wrap; gap: 0.3rem 0.9rem; font-size: 0.82rem; border-top: 1px solid var(--line-soft); padding-top: 0.5rem; }
+.ccard-data > span { white-space: nowrap; }
+.ccard-data .lbl { color: var(--muted); }
+/* Variantes de badge : privé rouge, public vert, merch orange (base) */
+.badge.priv { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); }
+.badge.pub { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
+
+/* ---- Import de métadonnées (Répertoire) ---- */
+.meta-candidate {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-align: left;
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+}
+.meta-candidate img { border-radius: 5px; flex: none; object-fit: cover; }
+.meta-candidate-txt { display: flex; flex-direction: column; min-width: 0; gap: 0.1rem; }
+.meta-candidate-txt strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meta-candidate-txt .small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meta-preview { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.3rem; width: 100%; }
+.meta-row { display: flex; align-items: flex-start; gap: 0.55rem; cursor: pointer; padding: 0.3rem 0; }
+.meta-row input { margin-top: 0.2rem; flex: none; width: 1.05rem; height: 1.05rem; accent-color: var(--amber); }
+.meta-row-body { display: flex; flex-direction: column; gap: 0.05rem; min-width: 0; }
+.meta-row-label { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.meta-row-val { overflow-wrap: anywhere; }
+.meta-credit { font-size: 0.72rem; text-decoration: none; }
+.meta-credit:hover { color: var(--cyan); }
+
+/* Deux champs côte à côte dans une seule cellule de grille (ex. heure de début + durée). */
+.split2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+.split2 > .field { min-width: 0; }
+
+/* Feuille de route : rangée compacte, l'étape occupe l'espace restant, tout tient dans le cadre. */
+.roadmap-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.4rem; width: 100%; }
+.roadmap-row { display: flex; align-items: center; gap: 0.4rem; width: 100%; }
+.roadmap-row .rm-time { flex: none; }
+.roadmap-row .rm-label { flex: 1; min-width: 0; }
+/* Croix de suppression à la même hauteur que les champs de saisie. */
+.roadmap-row .rm-del { flex: none; align-self: stretch; }
 
 /* ---- Mouvement réduit ---- */
 @media (prefers-reduced-motion: reduce) {

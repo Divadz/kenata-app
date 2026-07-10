@@ -119,6 +119,7 @@ export interface ConcertSummary {
   id: string;
   date: string | null;
   start_time?: string | null;
+  arrival_time?: string | null;
   venue_name: string | null;
   visibility: 'public' | 'private';
   merch?: boolean;
@@ -132,6 +133,7 @@ export interface ConcertSummary {
 
 export interface ConcertDetail extends ConcertSummary {
   start_time: string | null;
+  arrival_time: string | null;
   poster_url: string | null;
   poster_is_link: boolean;
   on_site: boolean;

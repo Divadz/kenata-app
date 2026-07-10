@@ -9,6 +9,14 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Attribution GetSongBPM (obligatoire) : statique, donc présente dans le HTML brut,
+         en plus du lien rendu par l'app. Ne pas retirer tant que l'API GetSongBPM est utilisée. -->
+    <footer style="text-align:center;padding:1rem;background:#14121a;font-family:system-ui,sans-serif;">
+      <a href="https://getsongbpm.com" target="_blank" rel="noopener"
+         style="color:#9a8fa6;text-decoration:none;font-size:0.72rem;">
+        Données musicales (tempo &amp; tonalité) fournies par GetSongBPM
+      </a>
+    </footer>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

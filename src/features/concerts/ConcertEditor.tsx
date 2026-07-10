@@ -92,6 +92,17 @@ export function ConcertEditor() {
     save({ [key]: arr } as Partial<ConcertDetail>);
   }
 
+  // Tri des étapes par heure croissante ; les étapes sans heure restent en fin.
+  const sortRoadmap = (arr: RoadmapItem[]): RoadmapItem[] =>
+    [...arr].sort((a, b) => {
+      const ta = a.time || '';
+      const tb = b.time || '';
+      if (ta === tb) return 0;
+      if (!ta) return 1;
+      if (!tb) return -1;
+      return ta < tb ? -1 : 1;
+    });
+
   async function onPosterFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -138,25 +149,40 @@ export function ConcertEditor() {
             }}
           />
         </label>
+        <div className="field">
+          <div className="split2">
+            <label className="field">
+              <span>Heure de début</span>
+              <input
+                type="time"
+                value={c.start_time ?? ''}
+                onChange={(e) => {
+                  setField('start_time', e.target.value || null);
+                  save({ start_time: e.target.value || null });
+                }}
+              />
+            </label>
+            <label className="field">
+              <span>Durée cible</span>
+              <DurationSelect
+                ariaLabel="Durée cible"
+                value={c.target_duration_min}
+                onChange={(v) => {
+                  setField('target_duration_min', v);
+                  save({ target_duration_min: v });
+                }}
+              />
+            </label>
+          </div>
+        </div>
         <label className="field">
-          <span>Heure de début</span>
+          <span>Heure d'arrivée</span>
           <input
             type="time"
-            value={c.start_time ?? ''}
+            value={c.arrival_time ?? ''}
             onChange={(e) => {
-              setField('start_time', e.target.value || null);
-              save({ start_time: e.target.value || null });
-            }}
-          />
-        </label>
-        <label className="field">
-          <span>Durée cible</span>
-          <DurationSelect
-            ariaLabel="Durée cible"
-            value={c.target_duration_min}
-            onChange={(v) => {
-              setField('target_duration_min', v);
-              save({ target_duration_min: v });
+              setField('arrival_time', e.target.value || null);
+              save({ arrival_time: e.target.value || null });
             }}
           />
         </label>
@@ -374,24 +400,26 @@ export function ConcertEditor() {
     roadmap: (
       <div className="card form full" key="roadmap">
         <h3>Feuille de route</h3>
-        <ul className="list">
+        <ul className="roadmap-list">
           {roadmap.map((r: RoadmapItem, i) => (
-            <li key={i}>
+            <li key={i} className="roadmap-row">
               <input
+                className="rm-time"
                 aria-label="Heure"
                 type="time"
                 value={r.time ?? ''}
                 onChange={(e) => setField('roadmap', patchAt(roadmap, i, { time: e.target.value }))}
-                onBlur={() => save({ roadmap: cRef.current?.roadmap ?? [] })}
+                onBlur={() => commitArr('roadmap', sortRoadmap(cRef.current?.roadmap ?? []))}
               />
               <input
+                className="rm-label"
                 aria-label="Étape"
                 placeholder="Balances, catering, set…"
                 value={r.label ?? ''}
                 onChange={(e) => setField('roadmap', patchAt(roadmap, i, { label: e.target.value }))}
                 onBlur={() => save({ roadmap: cRef.current?.roadmap ?? [] })}
               />
-              <button className="btn small" aria-label="Retirer" onClick={() => commitArr('roadmap', roadmap.filter((_, x) => x !== i))}>
+              <button className="btn small icon-btn rm-del" aria-label="Retirer" onClick={() => commitArr('roadmap', roadmap.filter((_, x) => x !== i))}>
                 ✕
               </button>
             </li>

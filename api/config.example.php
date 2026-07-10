@@ -31,4 +31,9 @@ return [
         // Redirection après connexion réussie.
         'post_login_redirect' => '/',
     ],
+    'getsongbpm' => [
+        // Clé API gratuite : https://getsongbpm.com/api (nécessite un lien d'attribution
+        // « Powered by GetSongBPM » sur le site). Laisser vide pour désactiver tonalité/tempo.
+        'api_key' => '',
+    ],
 ];

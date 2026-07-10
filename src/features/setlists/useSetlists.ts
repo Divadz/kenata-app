@@ -30,6 +30,9 @@ export function createSetlist(name: string, targetMin: number | null) {
 export function deleteSetlist(id: string) {
   return api(`/setlists/${id}`, { method: 'DELETE' });
 }
+export function duplicateSetlist(id: string) {
+  return api<{ id: string }>(`/setlists/${id}/duplicate`, { method: 'POST' });
+}
 export function getSetlist(id: string) {
   return api<SetlistDetail>(`/setlists/${id}`);
 }

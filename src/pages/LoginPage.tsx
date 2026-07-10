@@ -11,22 +11,27 @@ export function LoginPage() {
 
   return (
     <div className="center">
-      <div className="card auth-card">
-        <h1 className="logo">Kenata 🤘</h1>
-        <p className="muted">Espace de gestion du groupe. Accès sur invitation.</p>
-        <a className="btn primary" href="/api/auth/google">
-          Se connecter avec Google
-        </a>
-        {import.meta.env.DEV && (
-          <a className="btn small" href="/api/auth/dev-login">
-            Connexion dev (local)
+      <div className="stack" style={{ alignItems: 'center', gap: '1.25rem' }}>
+        <div className="card auth-card">
+          <h1 className="logo">Kenata 🤘</h1>
+          <p className="muted">Espace de gestion du groupe. Accès sur invitation.</p>
+          <a className="btn primary" href="/api/auth/google">
+            Se connecter avec Google
           </a>
-        )}
-        {error && (
-          <p className="error" role="alert">
-            {ERRORS[error] ?? 'Erreur de connexion.'}
-          </p>
-        )}
+          {import.meta.env.DEV && (
+            <a className="btn small" href="/api/auth/dev-login">
+              Connexion dev (local)
+            </a>
+          )}
+          {error && (
+            <p className="error" role="alert">
+              {ERRORS[error] ?? 'Erreur de connexion.'}
+            </p>
+          )}
+        </div>
+        <a className="muted meta-credit" href="https://getsongbpm.com" target="_blank" rel="noopener noreferrer">
+          Données musicales (tempo &amp; tonalité) fournies par GetSongBPM
+        </a>
       </div>
     </div>
   );

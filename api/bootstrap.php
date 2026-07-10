@@ -22,6 +22,24 @@ if (!is_array($loaded)) {
     echo json_encode(['error' => 'server_misconfigured']);
     exit;
 }
+
+// Clés d'API tierces (ex. GetSongBPM) dans un fichier séparé, déployable sans
+// toucher au config.php de secrets. Optionnel ; fusionné par-dessus la config.
+$keysCandidates = [
+    __DIR__ . '/../../kenata-keys.php',
+    __DIR__ . '/../config.keys.php',
+    __DIR__ . '/config.keys.php',
+];
+foreach ($keysCandidates as $candidate) {
+    if (is_file($candidate)) {
+        $extra = require $candidate;
+        if (is_array($extra)) {
+            $loaded = array_replace_recursive($loaded, $extra);
+        }
+        break;
+    }
+}
+
 $GLOBALS['kenata_config'] = $loaded;
 
 function config(string $path, mixed $default = null): mixed

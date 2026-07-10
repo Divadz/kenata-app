@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import type { Song, SongType } from '../../types/models';
 import { KEYS, MASTERY_LEVELS, TUNINGS } from './constants';
 import { formatDuration, parseDuration } from '../../utils/duration';
-import { lookupMetadata } from './metadata';
+import { MetadataImport } from './MetadataImport';
 import { createSong, deleteSong, findDuplicate, updateSong, type SongRow } from './useSongs';
 
 interface Props {
@@ -25,7 +25,6 @@ export function SongForm({ songs, editing, onSaved, onClose }: Props) {
   const [cover, setCover] = useState(editing?.cover ?? '');
   const [roles, setRoles] = useState(editing?.roles ?? '');
   const [watch, setWatch] = useState(editing?.watch ?? '');
-  const [info, setInfo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -39,20 +38,6 @@ export function SongForm({ songs, editing, onSaved, onClose }: Props) {
     () => (title.trim() ? findDuplicate(songs, title, artist, editing?.id) : undefined),
     [songs, title, artist, editing]
   );
-
-  async function onEnrich() {
-    setInfo(null);
-    const meta = await lookupMetadata(title, artist);
-    if (!meta) {
-      setInfo('Aucun fournisseur de métadonnées configuré pour le moment.');
-      return;
-    }
-    if (meta.artist) setArtist(meta.artist);
-    if (meta.album) setAlbum(meta.album);
-    if (meta.duration_sec) setDuration(formatDuration(meta.duration_sec));
-    if (meta.bpm) setBpm(String(meta.bpm));
-    if (meta.cover) setCover(meta.cover);
-  }
 
   async function onSubmit() {
     setError(null);
@@ -189,9 +174,19 @@ export function SongForm({ songs, editing, onSaved, onClose }: Props) {
         </label>
       </div>
 
-      <button className="btn small" onClick={onEnrich}>
-        Compléter les infos automatiquement
-      </button>
+      <MetadataImport
+        title={title}
+        artist={artist}
+        current={{ artist, album, duration, bpm, music_key: musicKey, cover }}
+        onApply={(p) => {
+          if (p.artist !== undefined) setArtist(p.artist);
+          if (p.album !== undefined) setAlbum(p.album);
+          if (p.duration !== undefined) setDuration(p.duration);
+          if (p.bpm !== undefined) setBpm(p.bpm);
+          if (p.music_key !== undefined) setMusicKey(p.music_key);
+          if (p.cover !== undefined) setCover(p.cover);
+        }}
+      />
 
       <details>
         <summary>Fiche morceau (rôles, points de vigilance)</summary>
@@ -211,11 +206,6 @@ export function SongForm({ songs, editing, onSaved, onClose }: Props) {
         <p className="warn" aria-live="polite">
           ⚠ Un morceau identique existe déjà : « {duplicate.title} »
           {duplicate.artist ? ` — ${duplicate.artist}` : ''}.
-        </p>
-      )}
-      {info && (
-        <p className="muted" aria-live="polite">
-          {info}
         </p>
       )}
       {error && (

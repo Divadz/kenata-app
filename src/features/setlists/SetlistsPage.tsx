@@ -2,14 +2,13 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { formatHM } from '../../utils/duration';
 import { DurationSelect } from '../../components/DurationSelect';
-import { createSetlist, deleteSetlist, useSetlists } from './useSetlists';
+import { createSetlist, useSetlists } from './useSetlists';
 
 export function SetlistsPage() {
   const { setlists, loading, reload } = useSetlists();
   const [name, setName] = useState('');
-  const [target, setTarget] = useState<number | null>(null);
+  const [target, setTarget] = useState<number | null>(120); // 02h00 par défaut
   const [creating, setCreating] = useState(false);
-  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function onCreate() {
@@ -22,7 +21,7 @@ export function SetlistsPage() {
     try {
       await createSetlist(name.trim(), target);
       setName('');
-      setTarget(null);
+      setTarget(120);
       await reload();
     } catch (e) {
       setError((e as Error).message);
@@ -61,13 +60,11 @@ export function SetlistsPage() {
       ) : setlists.length === 0 ? (
         <p className="muted">Aucune setlist. Crée ta première pour préparer un concert.</p>
       ) : (
-        <div className="cards full">
+        <div className="cards cards-3 full">
           {setlists.map((s) => (
-            <div key={s.id} className="card setlist-card">
+            <Link key={s.id} className="card link setlist-card" to={`/setlists/${s.id}`}>
               <div className="row between">
-                <Link className="setlist-name" to={`/setlists/${s.id}`}>
-                  {s.name}
-                </Link>
+                <span className="setlist-name">{s.name}</span>
                 {s.share_token && <span className="badge">partagée</span>}
               </div>
               <p className="muted small">
@@ -75,33 +72,7 @@ export function SetlistsPage() {
                 <span className="mono">{formatHM(Number(s.total_sec)) || '00h00'}</span>
                 {s.target_duration_min ? ` / ${formatHM(s.target_duration_min * 60)}` : ''}
               </p>
-              <div className="row">
-                <Link className="btn small" to={`/setlists/${s.id}`}>
-                  Ouvrir
-                </Link>
-                {pendingDelete === s.id ? (
-                  <>
-                    <button
-                      className="btn small danger"
-                      onClick={async () => {
-                        await deleteSetlist(s.id);
-                        setPendingDelete(null);
-                        await reload();
-                      }}
-                    >
-                      Confirmer
-                    </button>
-                    <button className="btn small" onClick={() => setPendingDelete(null)}>
-                      Annuler
-                    </button>
-                  </>
-                ) : (
-                  <button className="btn small" onClick={() => setPendingDelete(s.id)}>
-                    Suppr.
-                  </button>
-                )}
-              </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}

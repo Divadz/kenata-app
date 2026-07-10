@@ -8,7 +8,12 @@ dist-ssr
 
 # Config backend (secrets) — ne JAMAIS versionner
 api/config.php
+api/config.keys.php
+kenata-keys.php
 kenata-config.php
+
+# Scripts de migration jetables
+api/_migrate.php
 
 # Affiches uploadées (générées à l'exécution)
 uploads/
