@@ -15,7 +15,44 @@ export function GroupSettings() {
       <h2>Réglages du groupe</h2>
       <GearInventory />
       <SectionOrderSettings />
+      <AppMaintenance />
     </section>
+  );
+}
+
+/** Rechargement complet (vide le service worker + les caches) — réservé au owner. */
+function AppMaintenance() {
+  const { member } = useAuth();
+  const [busy, setBusy] = useState(false);
+  if (member?.role !== 'owner') return null;
+
+  async function hardReload() {
+    setBusy(true);
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+      }
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
+    } finally {
+      window.location.reload();
+    }
+  }
+
+  return (
+    <div className="card form full">
+      <h3>Maintenance</h3>
+      <p className="muted small">
+        Force le rechargement complet de l'application en vidant le cache et le service worker.
+        Utile juste après une mise à jour si l'ancienne version reste affichée.
+      </p>
+      <button className="btn" onClick={hardReload} disabled={busy}>
+        {busy ? 'Rechargement…' : '↻ Tout recharger (vider le cache)'}
+      </button>
+    </div>
   );
 }
 

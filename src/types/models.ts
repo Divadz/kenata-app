@@ -99,6 +99,8 @@ export interface ConcertContacts {
   org?: ContactInfo;
   sound?: ContactInfo;
   light?: ContactInfo;
+  /** Adresse à faire figurer sur le contrat (multiligne). */
+  contract_address?: string;
 }
 export interface TicketLink {
   label?: string;

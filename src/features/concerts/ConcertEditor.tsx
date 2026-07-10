@@ -82,6 +82,9 @@ export function ConcertEditor() {
       return { ...prev, contacts: cs };
     });
   }
+  function setContractAddress(value: string) {
+    setC((prev) => (prev ? { ...prev, contacts: { ...(prev.contacts ?? {}), contract_address: value } } : prev));
+  }
   const saveContacts = () => save({ contacts: cRef.current?.contacts ?? null });
 
   function commitArr<K extends 'ticket_links' | 'roadmap' | 'gear_checklist'>(
@@ -364,6 +367,16 @@ export function ConcertEditor() {
               </div>
             );
           })}
+          <label className="field full">
+            <span>Adresse contrat</span>
+            <textarea
+              rows={3}
+              placeholder="Raison sociale, adresse complète, SIRET… (servira à générer le contrat)"
+              value={contacts.contract_address ?? ''}
+              onChange={(e) => setContractAddress(e.target.value)}
+              onBlur={saveContacts}
+            />
+          </label>
         </div>
       </div>
     ),
@@ -448,19 +461,15 @@ export function ConcertEditor() {
         <div className="grid2">
           <label className="field">
             <span>Adresse</span>
-            <input placeholder="Adresse de la salle" {...t('address')} />
-          </label>
-          <label className="field">
-            <span>Lien Google Maps</span>
-            <div className="row full">
-              <input className="grow" placeholder="https://maps…" {...t('maps_url')} />
+            <div className="input-btn">
+              <input className="grow" placeholder="Adresse de la salle" {...t('address')} />
               {mapsHref ? (
                 <a className="btn small icon-btn" href={mapsHref} target="_blank" rel="noreferrer" aria-label="Ouvrir dans Maps">
-                  🗺
+                  📍
                 </a>
               ) : (
-                <button className="btn small icon-btn" disabled aria-label="Ouvrir dans Maps">
-                  🗺
+                <button className="btn small icon-btn" disabled aria-label="Ouvrir dans Maps" title="Saisis une adresse pour activer le lien">
+                  📍
                 </button>
               )}
             </div>

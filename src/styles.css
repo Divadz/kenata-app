@@ -498,6 +498,34 @@ code { font-family: var(--mono); font-size: 0.85em; color: var(--cyan); }
 /* Croix de suppression à la même hauteur que les champs de saisie. */
 .roadmap-row .rm-del { flex: none; align-self: stretch; }
 
+/* ---- Popup flottante d'installation PWA ---- */
+.install-pop {
+  position: fixed;
+  left: 50%;
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 50;
+  width: min(440px, calc(100vw - 1.5rem));
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.7rem 0.8rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--amber);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+  animation: install-pop-in 0.25s ease-out;
+}
+@keyframes install-pop-in {
+  from { opacity: 0; transform: translate(-50%, 12px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+.install-pop-icon { flex: none; border-radius: 9px; }
+.install-pop-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+.install-pop-body strong { font-size: 0.92rem; }
+.install-pop-x { flex: none; }
+
 /* ---- Mouvement réduit ---- */
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
