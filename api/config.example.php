@@ -36,4 +36,16 @@ return [
         // « Powered by GetSongBPM » sur le site). Laisser vide pour désactiver tonalité/tempo.
         'api_key' => '',
     ],
+    // Envoi d'e-mails via SMTP Gmail (secrets : à mettre plutôt dans config.keys.php).
+    // `user` = compte Gmail authentifié ; `pass` = mot de passe d'application ;
+    // `from` = alias vérifié « Expédier en tant que » (ex. contact@kenata.fr).
+    'smtp' => [
+        'host'      => 'smtp.gmail.com',
+        'port'      => 587,
+        'user'      => '',
+        'pass'      => '',
+        'from'      => '',
+        'from_name' => 'Kenata',
+        'reply_to'  => '',
+    ],
 ];

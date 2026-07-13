@@ -5,6 +5,7 @@ require __DIR__ . '/bootstrap.php';
 require __DIR__ . '/lib/Session.php';
 require __DIR__ . '/lib/Auth.php';
 require __DIR__ . '/lib/GoogleOAuth.php';
+require __DIR__ . '/lib/Mailer.php';
 
 // En dev (serveur intégré `php -S`) : servir les fichiers statiques existants
 // (ex. /uploads/...) au lieu de router. Ignoré en prod (Apache sert directement).
