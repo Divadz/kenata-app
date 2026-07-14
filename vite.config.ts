@@ -10,6 +10,8 @@ export default defineConfig({
       workbox: {
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api/, /^\/uploads/, /^\/s\//],
+        // Ajoute la gestion des notifications push au service worker généré.
+        importScripts: ['push-handler.js'],
         runtimeCaching: [
           {
             // Données API : réseau d'abord, repli sur le cache hors-ligne.

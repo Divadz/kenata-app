@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import { useAuth } from '../../auth/AuthProvider';
+import { currentSubscription, disablePush, enablePush, isIOS, isStandalone, pushSupported } from '../../push';
 import { reconcileOrder, SECTION_LABELS, type SectionKey } from '../concerts/sections';
 import {
   createGearItem,
@@ -13,10 +14,148 @@ export function GroupSettings() {
   return (
     <section className="stack full">
       <h2>Réglages du groupe</h2>
+      <NotificationsSettings />
+      <NotifTest />
       <GearInventory />
       <SectionOrderSettings />
       <AppMaintenance />
     </section>
+  );
+}
+
+/** Activation des notifications push, par appareil. */
+function NotificationsSettings() {
+  const [sub, setSub] = useState<PushSubscription | null | undefined>(undefined);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    void currentSubscription().then(setSub);
+  }, []);
+
+  const supported = pushSupported();
+  const iosNotInstalled = isIOS() && !isStandalone();
+
+  async function enable() {
+    setBusy(true);
+    setMsg(null);
+    try {
+      await enablePush();
+      setSub(await currentSubscription());
+      setMsg('Notifications activées sur cet appareil ✓');
+    } catch (e) {
+      const m = (e as Error).message;
+      setMsg(
+        m === 'permission_denied'
+          ? 'Permission refusée. Autorise les notifications dans les réglages du navigateur.'
+          : 'Échec de l’activation.'
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function disable() {
+    setBusy(true);
+    setMsg(null);
+    try {
+      await disablePush();
+      setSub(null);
+      setMsg('Notifications désactivées sur cet appareil.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card form full">
+      <h3>Notifications</h3>
+      {!supported ? (
+        <p className="muted small">
+          {iosNotInstalled
+            ? "Sur iPhone, installe d'abord l'app sur l'écran d'accueil (Safari → Partager → « Sur l'écran d'accueil ») pour pouvoir activer les notifications."
+            : 'Ce navigateur ne supporte pas les notifications push.'}
+        </p>
+      ) : sub === undefined ? (
+        <p className="muted small">Vérification…</p>
+      ) : sub ? (
+        <div className="row">
+          <span className="ok small">🔔 Activées sur cet appareil</span>
+          <button className="btn small" onClick={disable} disabled={busy}>
+            Désactiver
+          </button>
+        </div>
+      ) : (
+        <>
+          <p className="muted small">Reçois les rappels (relances Booking, infos manquantes) même app fermée.</p>
+          <button className="btn primary small" onClick={enable} disabled={busy}>
+            🔔 Activer les notifications
+          </button>
+        </>
+      )}
+      {msg && (
+        <p className="muted small" aria-live="polite">
+          {msg}
+        </p>
+      )}
+    </div>
+  );
+}
+
+interface MemberRow {
+  uid: string;
+  email: string;
+  profile?: { name?: string | null };
+}
+
+/** Test des notifications par membre — owner uniquement. */
+function NotifTest() {
+  const { member } = useAuth();
+  const [members, setMembers] = useState<MemberRow[]>([]);
+  const [results, setResults] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (member?.role === 'owner') void api<MemberRow[]>('/members').then(setMembers);
+  }, [member]);
+
+  if (member?.role !== 'owner') return null;
+
+  async function test(uid: string) {
+    setResults((r) => ({ ...r, [uid]: '…' }));
+    try {
+      const res = await api<{ sent: number; devices: number; errors: string[] }>('/push/test', {
+        method: 'POST',
+        body: { user_id: uid },
+      });
+      setResults((r) => ({
+        ...r,
+        [uid]:
+          res.devices === 0
+            ? 'aucun appareil abonné'
+            : `envoyée à ${res.sent}/${res.devices}${res.errors.length ? ' · ' + res.errors.join(', ') : ''}`,
+      }));
+    } catch {
+      setResults((r) => ({ ...r, [uid]: 'erreur' }));
+    }
+  }
+
+  return (
+    <div className="card form full">
+      <h3>Test des notifications</h3>
+      <p className="muted small">Envoie une notif de test aux appareils d'un membre.</p>
+      <ul className="list">
+        {members.map((m) => (
+          <li key={m.uid}>
+            <span>{m.profile?.name || m.email}</span>
+            <span className="row">
+              {results[m.uid] && <span className="muted small">{results[m.uid]}</span>}
+              <button className="btn small" onClick={() => test(m.uid)}>
+                Tester
+              </button>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

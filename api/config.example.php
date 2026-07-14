@@ -48,4 +48,11 @@ return [
         'from_name' => 'Kenata',
         'reply_to'  => '',
     ],
+    // Notifications push web (VAPID). Clés générées une fois (EC prime256v1).
+    // `public` = base64url du point non compressé ; `private_pem` = clé privée PEM.
+    'vapid' => [
+        'public'      => '',
+        'private_pem' => '',
+        'subject'     => 'mailto:contact@kenata.fr',
+    ],
 ];

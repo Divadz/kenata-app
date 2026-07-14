@@ -216,6 +216,23 @@ CREATE TABLE IF NOT EXISTS booking_leads (
   CONSTRAINT fk_lead_concert FOREIGN KEY (concert_id) REFERENCES concerts(id)  ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Abonnements aux notifications push (Lot 6). Un membre peut avoir plusieurs
+-- appareils ; unicité par empreinte de l'endpoint.
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id            CHAR(36)     NOT NULL,
+  user_id       CHAR(36)     NOT NULL,
+  endpoint      TEXT         NOT NULL,
+  endpoint_hash CHAR(64)     NOT NULL,
+  p256dh        VARCHAR(255) NOT NULL,
+  auth          VARCHAR(255) NOT NULL,
+  ua            VARCHAR(255) NULL,
+  created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_endpoint (endpoint_hash),
+  KEY idx_user (user_id),
+  CONSTRAINT fk_push_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Amorçage du groupe unique (renseigne l'id depuis la config : ex. 'kenata').
 INSERT INTO app_group (id, name) VALUES ('kenata', 'Kenata')
   ON DUPLICATE KEY UPDATE name = name;

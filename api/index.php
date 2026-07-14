@@ -6,6 +6,7 @@ require __DIR__ . '/lib/Session.php';
 require __DIR__ . '/lib/Auth.php';
 require __DIR__ . '/lib/GoogleOAuth.php';
 require __DIR__ . '/lib/Mailer.php';
+require __DIR__ . '/lib/WebPush.php';
 
 // En dev (serveur intégré `php -S`) : servir les fichiers statiques existants
 // (ex. /uploads/...) au lieu de router. Ignoré en prod (Apache sert directement).
@@ -1432,6 +1433,84 @@ function booking_confirm(string $id): never
 }
 
 // ---------------------------------------------------------------------------
+// Notifications push (Lot 6)
+// ---------------------------------------------------------------------------
+
+function push_vapid_key(): never
+{
+    Auth::requireMember();
+    json_response(['key' => (string) config('vapid.public', '')]);
+}
+
+function push_subscribe(): never
+{
+    $m = Auth::requireMember();
+    Auth::enforceCsrf();
+    $b = read_json();
+    $endpoint = (string) ($b['endpoint'] ?? '');
+    $keys = is_array($b['keys'] ?? null) ? $b['keys'] : [];
+    $p256dh = (string) ($keys['p256dh'] ?? '');
+    $auth = (string) ($keys['auth'] ?? '');
+    if ($endpoint === '' || $p256dh === '' || $auth === '') {
+        json_response(['error' => 'invalid'], 422);
+    }
+    $ua = mb_substr((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255);
+    db()->prepare(
+        'INSERT INTO push_subscriptions (id, user_id, endpoint, endpoint_hash, p256dh, auth, ua)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE user_id = VALUES(user_id), p256dh = VALUES(p256dh), auth = VALUES(auth), ua = VALUES(ua)'
+    )->execute([uuidv4(), $m['user_id'], $endpoint, hash('sha256', $endpoint), $p256dh, $auth, $ua]);
+    json_response(['ok' => true]);
+}
+
+function push_unsubscribe(): never
+{
+    $m = Auth::requireMember();
+    Auth::enforceCsrf();
+    $endpoint = (string) (read_json()['endpoint'] ?? '');
+    if ($endpoint !== '') {
+        db()->prepare('DELETE FROM push_subscriptions WHERE endpoint_hash = ? AND user_id = ?')
+            ->execute([hash('sha256', $endpoint), $m['user_id']]);
+    }
+    json_response(['ok' => true]);
+}
+
+/** Envoie une notif de test aux appareils d'un membre — owner uniquement. */
+function push_test(): never
+{
+    $m = Auth::requireMember();
+    if ($m['role'] !== 'owner') {
+        json_response(['error' => 'forbidden'], 403);
+    }
+    Auth::enforceCsrf();
+    $uid = (string) (read_json()['user_id'] ?? '');
+    if ($uid === '') {
+        json_response(['error' => 'invalid'], 422);
+    }
+    $stmt = db()->prepare('SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ?');
+    $stmt->execute([$uid]);
+    $subs = $stmt->fetchAll();
+    $sent = 0;
+    $errors = [];
+    foreach ($subs as $s) {
+        [$st] = WebPush::send($s['endpoint'], $s['p256dh'], $s['auth'], [
+            'title' => 'Kenata — test 🤘',
+            'body'  => 'Si tu vois ceci, les notifications fonctionnent !',
+            'url'   => '/',
+        ]);
+        if ($st === 201 || $st === 200) {
+            $sent++;
+        } elseif ($st === 404 || $st === 410) {
+            db()->prepare('DELETE FROM push_subscriptions WHERE id = ?')->execute([$s['id']]);
+            $errors[] = 'expiré';
+        } else {
+            $errors[] = "HTTP $st";
+        }
+    }
+    json_response(['sent' => $sent, 'devices' => count($subs), 'errors' => $errors]);
+}
+
+// ---------------------------------------------------------------------------
 // Routage
 // ---------------------------------------------------------------------------
 
@@ -1503,6 +1582,11 @@ $routes = [
     ['PATCH',  '#^/booking/([^/]+)$#',          'booking_update'],
     ['DELETE', '#^/booking/([^/]+)$#',          'booking_delete'],
     ['POST',   '#^/booking/([^/]+)/confirm$#',  'booking_confirm'],
+
+    ['GET',    '#^/push/vapid-public-key$#',    'push_vapid_key'],
+    ['POST',   '#^/push/subscribe$#',           'push_subscribe'],
+    ['POST',   '#^/push/unsubscribe$#',         'push_unsubscribe'],
+    ['POST',   '#^/push/test$#',                'push_test'],
 ];
 
 try {
