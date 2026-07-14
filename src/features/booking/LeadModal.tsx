@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { BookingExchange, BookingLead, BookingStage, ExchangeType } from '../../types/models';
+import { AddressAutocomplete } from '../../components/AddressAutocomplete';
 import { BOARD_STAGES, EXCHANGE_TYPES, exchangeIcon } from './constants';
 import { confirmLead, createLead, deleteLead, updateLead } from './useBooking';
 
@@ -128,7 +129,12 @@ export function LeadModal({ lead, initialStage, onClose, onSaved }: Props) {
         <div className="grid2 full">
           <label className="field">
             <span>Ville</span>
-            <input value={form.city ?? ''} onChange={(e) => set('city', e.target.value)} />
+            <AddressAutocomplete
+              type="city"
+              ariaLabel="Ville"
+              value={form.city ?? ''}
+              onChange={(v) => set('city', v)}
+            />
           </label>
           <label className="field">
             <span>Type (bar, salle, festival…)</span>

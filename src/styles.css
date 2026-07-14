@@ -668,6 +668,66 @@ code { font-family: var(--mono); font-size: 0.85em; color: var(--cyan); }
 .row-link { cursor: pointer; }
 .row-link:hover { background: var(--panel-2); }
 
+/* ---- Auto-complétion d'adresse (Base Adresse Nationale) ---- */
+.addr-ac { position: relative; min-width: 0; }
+.addr-ac > input { width: 100%; }
+.addr-suggest {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.55);
+  max-height: 240px;
+  overflow-y: auto;
+}
+.addr-suggest li {
+  padding: 0.4rem 0.5rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.88rem;
+}
+.addr-suggest li:hover,
+.addr-suggest li.active {
+  background: color-mix(in srgb, var(--amber) 14%, var(--panel-2));
+}
+
+/* ---- Autocomplétion d'adresse (BAN) ---- */
+.addr-ac { position: relative; }
+.addr-ac > .full { width: 100%; }
+.addr-list {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
+  max-height: 230px;
+  overflow-y: auto;
+}
+.addr-list li {
+  padding: 0.4rem 0.5rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.88rem;
+}
+.addr-list li:hover,
+.addr-list li.active {
+  background: color-mix(in srgb, var(--amber) 14%, var(--panel-2));
+}
+
 /* ---- Mouvement réduit ---- */
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }

@@ -8,6 +8,7 @@ import type {
   TicketLink,
 } from '../../types/models';
 import { DurationSelect } from '../../components/DurationSelect';
+import { AddressAutocomplete } from '../../components/AddressAutocomplete';
 import { useAuth } from '../../auth/AuthProvider';
 import { useSetlists } from '../setlists/useSetlists';
 import { useGearItems } from '../gear/useGearItems';
@@ -462,7 +463,14 @@ export function ConcertEditor() {
           <label className="field">
             <span>Adresse</span>
             <div className="input-btn">
-              <input className="grow" placeholder="Adresse de la salle" {...t('address')} />
+              <AddressAutocomplete
+                className="grow"
+                ariaLabel="Adresse"
+                placeholder="Adresse de la salle"
+                value={c.address ?? ''}
+                onChange={(v) => setField('address', v)}
+                onBlur={() => save({ address: cRef.current?.address ?? null })}
+              />
               {mapsHref ? (
                 <a className="btn small icon-btn" href={mapsHref} target="_blank" rel="noreferrer" aria-label="Ouvrir dans Maps">
                   📍
