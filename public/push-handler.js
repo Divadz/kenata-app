@@ -21,14 +21,25 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || '/';
+  const data = event.notification.data || {};
+  const target = new URL(data.url || '/', self.location.origin).href;
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
+    (async () => {
+      const wins = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+      // Priorité : refocaliser une fenêtre déjà ouverte sur notre origine (= la PWA).
       for (const w of wins) {
-        if (w.url.includes(url) && 'focus' in w) return w.focus();
+        if (w.url.startsWith(self.location.origin)) {
+          try {
+            await w.focus();
+            if (w.url !== target && 'navigate' in w) await w.navigate(target);
+          } catch (_e) {
+            /* ignore */
+          }
+          return;
+        }
       }
-      if (clients.openWindow) return clients.openWindow(url);
-      return undefined;
-    })
+      // Sinon, ouvrir l'app à l'URL absolue.
+      if (clients.openWindow) await clients.openWindow(target);
+    })()
   );
 });
