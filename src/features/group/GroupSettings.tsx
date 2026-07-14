@@ -41,7 +41,6 @@ function NotificationsSettings() {
     setMsg(null);
     try {
       await enablePush();
-      setSub(await currentSubscription());
       setMsg('Notifications activées sur cet appareil ✓');
     } catch (e) {
       const m = (e as Error).message;
@@ -51,6 +50,7 @@ function NotificationsSettings() {
           : 'Échec de l’activation.'
       );
     } finally {
+      setSub(await currentSubscription());
       setBusy(false);
     }
   }
@@ -59,9 +59,11 @@ function NotificationsSettings() {
     setMsg(null);
     try {
       await disablePush();
-      setSub(null);
       setMsg('Notifications désactivées sur cet appareil.');
+    } catch {
+      setMsg('Désactivation partielle (réseau) — réessaie si besoin.');
     } finally {
+      setSub(await currentSubscription());
       setBusy(false);
     }
   }

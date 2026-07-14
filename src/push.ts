@@ -25,7 +25,9 @@ export function isIOS(): boolean {
 
 export async function currentSubscription(): Promise<PushSubscription | null> {
   if (!pushSupported()) return null;
-  const reg = await navigator.serviceWorker.ready;
+  // getRegistration() ne bloque pas (contrairement à .ready qui attend un SW actif).
+  const reg = await navigator.serviceWorker.getRegistration();
+  if (!reg) return null;
   return reg.pushManager.getSubscription();
 }
 
@@ -35,7 +37,7 @@ export async function enablePush(): Promise<void> {
   if (perm !== 'granted') throw new Error('permission_denied');
   const { key } = await api<{ key: string }>('/push/vapid-public-key');
   if (!key) throw new Error('vapid_missing');
-  const reg = await navigator.serviceWorker.ready;
+  const reg = (await navigator.serviceWorker.getRegistration()) ?? (await navigator.serviceWorker.ready);
   const sub = await reg.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: urlBase64ToUint8Array(key) as unknown as BufferSource,
@@ -47,6 +49,11 @@ export async function enablePush(): Promise<void> {
 export async function disablePush(): Promise<void> {
   const sub = await currentSubscription();
   if (!sub) return;
-  await api('/push/unsubscribe', { method: 'POST', body: { endpoint: sub.endpoint } });
+  // On désabonne toujours le navigateur, même si l'appel serveur échoue.
+  try {
+    await api('/push/unsubscribe', { method: 'POST', body: { endpoint: sub.endpoint } });
+  } catch {
+    /* on continue quand même */
+  }
   await sub.unsubscribe();
 }
