@@ -38,6 +38,15 @@ export async function enablePush(): Promise<void> {
   const { key } = await api<{ key: string }>('/push/vapid-public-key');
   if (!key) throw new Error('vapid_missing');
   const reg = (await navigator.serviceWorker.getRegistration()) ?? (await navigator.serviceWorker.ready);
+  // Repart d'un état propre : supprime un éventuel abonnement bancal avant de recréer.
+  const existing = await reg.pushManager.getSubscription();
+  if (existing) {
+    try {
+      await existing.unsubscribe();
+    } catch {
+      /* ignore */
+    }
+  }
   const sub = await reg.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: urlBase64ToUint8Array(key) as unknown as BufferSource,
@@ -49,11 +58,16 @@ export async function enablePush(): Promise<void> {
 export async function disablePush(): Promise<void> {
   const sub = await currentSubscription();
   if (!sub) return;
-  // On désabonne toujours le navigateur, même si l'appel serveur échoue.
+  // Tout en best-effort : ni l'appel serveur ni le désabonnement navigateur
+  // ne doivent faire échouer la désactivation.
   try {
     await api('/push/unsubscribe', { method: 'POST', body: { endpoint: sub.endpoint } });
   } catch {
-    /* on continue quand même */
+    /* ignore */
   }
-  await sub.unsubscribe();
+  try {
+    await sub.unsubscribe();
+  } catch {
+    /* ignore */
+  }
 }

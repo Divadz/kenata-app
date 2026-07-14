@@ -79,19 +79,23 @@ function NotificationsSettings() {
         </p>
       ) : sub === undefined ? (
         <p className="muted small">Vérification…</p>
-      ) : sub ? (
-        <div className="row">
-          <span className="ok small">🔔 Activées sur cet appareil</span>
-          <button className="btn small" onClick={disable} disabled={busy}>
-            Désactiver
-          </button>
-        </div>
       ) : (
         <>
-          <p className="muted small">Reçois les rappels (relances Booking, infos manquantes) même app fermée.</p>
-          <button className="btn primary small" onClick={enable} disabled={busy}>
-            🔔 Activer les notifications
-          </button>
+          <p className="muted small">
+            {sub
+              ? '🔔 Activées sur cet appareil.'
+              : 'Reçois les rappels (relances Booking, infos manquantes) même app fermée.'}
+          </p>
+          <div className="row">
+            <button className="btn primary small" onClick={enable} disabled={busy}>
+              {sub ? '🔄 Réactiver' : '🔔 Activer les notifications'}
+            </button>
+            {sub && (
+              <button className="btn small" onClick={disable} disabled={busy}>
+                Désactiver
+              </button>
+            )}
+          </div>
         </>
       )}
       {msg && (
