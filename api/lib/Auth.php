@@ -37,7 +37,8 @@ final class Auth
             'email'   => $user['email'],
             'role'    => $row['role'],
             'profile' => [
-                'name'       => $row['profile_name'],
+                // À défaut de nom de profil saisi, on retombe sur le nom du compte Google.
+                'name'       => $row['profile_name'] ?? $user['name'],
                 'instrument' => $row['profile_instrument'],
             ],
         ];

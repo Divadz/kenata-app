@@ -115,7 +115,7 @@ export function HomePage() {
 
   return (
     <section className="stack full">
-      <h2 className="hello">Salut {member?.profile?.name || member?.email || 'toi'}</h2>
+      <h2 className="hello">Salut {member?.profile?.name || member?.profile?.nickname || 'toi'}</h2>
 
       {next.length > 0 && (
         <>
