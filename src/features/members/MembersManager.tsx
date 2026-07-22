@@ -3,7 +3,8 @@ import { useAuth } from '../../auth/AuthProvider';
 import { useMembers } from './useMembers';
 import type { Role } from '../../types/models';
 
-export function MembersPage() {
+/** Gestion des membres (liste, rôles, invitations) — sans en-tête, intégrable dans Réglages. */
+export function MembersManager() {
   const { isAdmin, member: me } = useAuth();
   const { members, invitations, invite, cancelInvitation, changeRole, removeMember } = useMembers();
   const [email, setEmail] = useState('');
@@ -26,9 +27,7 @@ export function MembersPage() {
   }
 
   return (
-    <section className="stack">
-      <h2>Membres</h2>
-
+    <div className="stack">
       <table className="table">
         <thead>
           <tr>
@@ -73,7 +72,7 @@ export function MembersPage() {
 
       {isAdmin && (
         <div className="stack">
-          <h3>Inviter un membre</h3>
+          <h4>Inviter un membre</h4>
           <div className="row">
             <input
               type="email"
@@ -104,7 +103,7 @@ export function MembersPage() {
 
           {invitations.length > 0 && (
             <>
-              <h3>Invitations en attente</h3>
+              <h4>Invitations en attente</h4>
               <ul className="list">
                 {invitations.map((i) => (
                   <li key={i.id}>
@@ -125,6 +124,6 @@ export function MembersPage() {
           </p>
         </div>
       )}
-    </section>
+    </div>
   );
 }

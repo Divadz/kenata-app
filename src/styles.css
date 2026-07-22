@@ -467,6 +467,32 @@ code { font-family: var(--mono); font-size: 0.85em; color: var(--cyan); }
 .onboard-check { color: var(--cyan); }
 
 /* ---- Cartes concert (Lot 3) ---- */
+/* Sections de réglages repliables. */
+.settings-section { padding: 0; overflow: hidden; }
+.settings-summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 0.85rem 1rem;
+  font-weight: 700;
+  font-size: 1.05rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  user-select: none;
+}
+.settings-summary::-webkit-details-marker { display: none; }
+/* Chevron rotatif devant le titre. */
+.settings-summary::before {
+  content: '▸';
+  color: var(--muted);
+  transition: transform 0.15s;
+}
+.settings-section[open] > .settings-summary::before { transform: rotate(90deg); }
+.settings-summary:hover { color: var(--amber); }
+/* Étoile "réservé au owner", poussée en haut à droite du cadre. */
+.settings-star { margin-left: auto; font-size: 0.9rem; line-height: 1; }
+.settings-body { padding: 0 1rem 1rem; border-top: 1px solid var(--line-soft); padding-top: 0.85rem; }
+
 /* Barre de recherche (liste des concerts). */
 .search-bar { display: flex; align-items: center; gap: 0.6rem; }
 .search-field { position: relative; flex: 1; min-width: 0; }

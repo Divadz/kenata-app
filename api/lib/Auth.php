@@ -62,6 +62,15 @@ final class Auth
         return $member;
     }
 
+    public static function requireOwner(): array
+    {
+        $member = self::requireMember();
+        if ($member['role'] !== 'owner') {
+            json_response(['error' => 'forbidden'], 403);
+        }
+        return $member;
+    }
+
     /**
      * Jeton CSRF = HMAC(secret, jeton de session). Impossible à forger sans le secret
      * serveur, et illisible pour un attaquant (cookie httpOnly + SameSite + CORS).

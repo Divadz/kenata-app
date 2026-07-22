@@ -305,7 +305,7 @@ function group_update(): never
 
 function members_list(): never
 {
-    Auth::requireMember();
+    Auth::requireOwner();
     $stmt = db()->prepare(
         'SELECT m.user_id, u.email, u.name, m.role, m.profile_name
          FROM memberships m JOIN users u ON u.id = m.user_id
@@ -323,7 +323,7 @@ function members_list(): never
 
 function members_invite(): never
 {
-    $actor = Auth::requireAdmin();
+    $actor = Auth::requireOwner();
     Auth::enforceCsrf();
     $b = read_json();
     $email = strtolower(trim((string) ($b['email'] ?? '')));
@@ -340,7 +340,7 @@ function members_invite(): never
 
 function members_update(string $uid): never
 {
-    $actor = Auth::requireAdmin();
+    $actor = Auth::requireOwner();
     Auth::enforceCsrf();
     $b = read_json();
     $newRole = $b['role'] ?? '';
@@ -364,7 +364,7 @@ function members_update(string $uid): never
 
 function members_remove(string $uid): never
 {
-    $actor = Auth::requireAdmin();
+    $actor = Auth::requireOwner();
     Auth::enforceCsrf();
     if ($uid === $actor['user_id']) {
         json_response(['error' => 'cannot_remove_self'], 400);
@@ -384,7 +384,7 @@ function members_remove(string $uid): never
 
 function invitations_list(): never
 {
-    Auth::requireAdmin();
+    Auth::requireOwner();
     $stmt = db()->prepare('SELECT id, email, role FROM invitations WHERE group_id = ? ORDER BY created_at');
     $stmt->execute([group_id()]);
     json_response($stmt->fetchAll());
@@ -392,7 +392,7 @@ function invitations_list(): never
 
 function invitations_remove(string $id): never
 {
-    Auth::requireAdmin();
+    Auth::requireOwner();
     Auth::enforceCsrf();
     db()->prepare('DELETE FROM invitations WHERE id = ? AND group_id = ?')->execute([$id, group_id()]);
     json_response(['ok' => true]);

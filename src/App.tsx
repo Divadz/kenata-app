@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthProvider';
 import { RequireMember } from './components/RequireMember';
 import { AppShell } from './components/AppShell';
@@ -10,7 +10,6 @@ import { SharedSetlist } from './features/setlists/SharedSetlist';
 import { ConcertsPage } from './features/concerts/ConcertsPage';
 import { ConcertEditor } from './features/concerts/ConcertEditor';
 import { BookingPage } from './features/booking/BookingPage';
-import { MembersPage } from './features/members/MembersPage';
 import { GroupSettings } from './features/group/GroupSettings';
 
 /** Application authentifiée (accès membre requis). */
@@ -26,7 +25,8 @@ function AuthedApp() {
           <Route path="concerts" element={<ConcertsPage />} />
           <Route path="concerts/:id" element={<ConcertEditor />} />
           <Route path="booking" element={<BookingPage />} />
-          <Route path="members" element={<MembersPage />} />
+          {/* Membres est désormais une section de Réglages ; on redirige les anciens liens. */}
+          <Route path="members" element={<Navigate to="/settings" replace />} />
           <Route path="settings" element={<GroupSettings />} />
         </Route>
       </Routes>

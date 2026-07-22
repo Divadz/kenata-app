@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { api } from '../../api/client';
 import { useAuth } from '../../auth/AuthProvider';
+import { MembersManager } from '../members/MembersManager';
 import { currentSubscription, disablePush, enablePush, isIOS, isStandalone, pushSupported } from '../../push';
 import { reconcileOrder, SECTION_LABELS, type SectionKey } from '../concerts/sections';
 import {
@@ -10,16 +11,67 @@ import {
   useGearItems,
 } from '../gear/useGearItems';
 
+/** Section de réglages repliable (fermée par défaut, ouvre au clic sur le titre). */
+function Section({
+  title,
+  children,
+  defaultOpen = false,
+  ownerOnly = false,
+}: {
+  title: string;
+  children: ReactNode;
+  defaultOpen?: boolean;
+  ownerOnly?: boolean;
+}) {
+  return (
+    <details className="card settings-section full" open={defaultOpen}>
+      <summary className="settings-summary">
+        {title}
+        {ownerOnly && (
+          <span className="settings-star" title="Visible uniquement par le owner" aria-label="Réservé au owner">
+            ⭐
+          </span>
+        )}
+      </summary>
+      <div className="settings-body form">{children}</div>
+    </details>
+  );
+}
+
 export function GroupSettings() {
+  const { member } = useAuth();
+  const isOwner = member?.role === 'owner';
+
   return (
     <section className="stack full">
       <h2>Réglages du groupe</h2>
-      <NotificationsSettings />
-      <NotifTest />
-      <GearInventory />
-      <SectionOrderSettings />
-      <AppMaintenance />
-      <AccountSection />
+      {isOwner && (
+        <Section title="Membres" ownerOnly>
+          <MembersManager />
+        </Section>
+      )}
+      <Section title="Notifications">
+        <NotificationsSettings />
+      </Section>
+      {isOwner && (
+        <Section title="Test des notifications" ownerOnly>
+          <NotifTest />
+        </Section>
+      )}
+      <Section title="Matos">
+        <GearInventory />
+      </Section>
+      <Section title="Ordre des sections du concert">
+        <SectionOrderSettings />
+      </Section>
+      {isOwner && (
+        <Section title="Maintenance" ownerOnly>
+          <AppMaintenance />
+        </Section>
+      )}
+      <Section title="Compte">
+        <AccountSection />
+      </Section>
     </section>
   );
 }
@@ -28,8 +80,7 @@ export function GroupSettings() {
 function AccountSection() {
   const { member, logout } = useAuth();
   return (
-    <div className="card form full">
-      <h3>Compte</h3>
+    <>
       <p className="muted small">
         Connecté en tant que <strong>{member?.profile?.name || member?.email}</strong>
         {member?.email && member?.profile?.name ? ` (${member.email})` : ''} · rôle {member?.role}.
@@ -37,7 +88,7 @@ function AccountSection() {
       <button className="btn" onClick={() => logout()}>
         Déconnexion
       </button>
-    </div>
+    </>
   );
 }
 
@@ -87,8 +138,7 @@ function NotificationsSettings() {
   }
 
   return (
-    <div className="card form full">
-      <h3>Notifications</h3>
+    <>
       {!supported ? (
         <p className="muted small">
           {iosNotInstalled
@@ -121,7 +171,7 @@ function NotificationsSettings() {
           {msg}
         </p>
       )}
-    </div>
+    </>
   );
 }
 
@@ -133,15 +183,12 @@ interface MemberRow {
 
 /** Test des notifications par membre — owner uniquement. */
 function NotifTest() {
-  const { member } = useAuth();
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [results, setResults] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (member?.role === 'owner') void api<MemberRow[]>('/members').then(setMembers);
-  }, [member]);
-
-  if (member?.role !== 'owner') return null;
+    void api<MemberRow[]>('/members').then(setMembers);
+  }, []);
 
   async function test(uid: string) {
     setResults((r) => ({ ...r, [uid]: '…' }));
@@ -163,8 +210,7 @@ function NotifTest() {
   }
 
   return (
-    <div className="card form full">
-      <h3>Test des notifications</h3>
+    <>
       <p className="muted small">Envoie une notif de test aux appareils d'un membre.</p>
       <ul className="list">
         {members.map((m) => (
@@ -179,15 +225,13 @@ function NotifTest() {
           </li>
         ))}
       </ul>
-    </div>
+    </>
   );
 }
 
 /** Rechargement complet (vide le service worker + les caches) — réservé au owner. */
 function AppMaintenance() {
-  const { member } = useAuth();
   const [busy, setBusy] = useState(false);
-  if (member?.role !== 'owner') return null;
 
   async function hardReload() {
     setBusy(true);
@@ -206,8 +250,7 @@ function AppMaintenance() {
   }
 
   return (
-    <div className="card form full">
-      <h3>Maintenance</h3>
+    <>
       <p className="muted small">
         Force le rechargement complet de l'application en vidant le cache et le service worker.
         Utile juste après une mise à jour si l'ancienne version reste affichée.
@@ -215,7 +258,7 @@ function AppMaintenance() {
       <button className="btn" onClick={hardReload} disabled={busy}>
         {busy ? 'Rechargement…' : '↻ Tout recharger (vider le cache)'}
       </button>
-    </div>
+    </>
   );
 }
 
@@ -251,8 +294,7 @@ function SectionOrderSettings() {
   }
 
   return (
-    <div className="card form full">
-      <h3>Ordre des sections du concert</h3>
+    <>
       <p className="muted small">
         « Essentiel » reste toujours en premier.{' '}
         {isOwner
@@ -284,7 +326,7 @@ function SectionOrderSettings() {
           Réinitialiser (suivre le groupe)
         </button>
       )}
-    </div>
+    </>
   );
 }
 
@@ -300,8 +342,7 @@ function GearInventory() {
   }
 
   return (
-    <div className="card form full">
-      <h3>Matos</h3>
+    <>
       <p className="muted small">
         Tes éléments de matériel. Coche ceux à emmener <strong>par défaut</strong> — ils seront
         pré-cochés sur les nouveaux concerts (décochables au cas par cas).
@@ -344,6 +385,6 @@ function GearInventory() {
           + Ajouter
         </button>
       </div>
-    </div>
+    </>
   );
 }

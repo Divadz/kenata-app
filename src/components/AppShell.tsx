@@ -24,11 +24,10 @@ export function AppShell() {
           <NavLink to="/" end>
             Accueil
           </NavLink>
-          <NavLink to="/repertoire">Répertoire</NavLink>
-          <NavLink to="/setlists">Setlists</NavLink>
           <NavLink to="/concerts">Concerts</NavLink>
           <NavLink to="/booking">Booking</NavLink>
-          <NavLink to="/members">Membres</NavLink>
+          <NavLink to="/setlists">Setlists</NavLink>
+          <NavLink to="/repertoire">Répertoire</NavLink>
           <NavLink to="/settings">Réglages</NavLink>
         </nav>
       </header>
