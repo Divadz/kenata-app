@@ -517,6 +517,17 @@ export function ConcertEditor() {
                 />{' '}
                 GUSO
               </label>
+              <label className="row" style={{ gap: '0.3rem', whiteSpace: 'nowrap' }}>
+                <input
+                  type="checkbox"
+                  checked={!!c.paid}
+                  onChange={(e) => {
+                    setField('paid', e.target.checked);
+                    save({ paid: e.target.checked });
+                  }}
+                />{' '}
+                Payé
+              </label>
             </div>
           </label>
           <label className="field">

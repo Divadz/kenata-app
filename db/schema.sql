@@ -172,6 +172,8 @@ CREATE TABLE IF NOT EXISTS concerts (
   visibility          ENUM('public','private') NOT NULL DEFAULT 'private',
   is_option           TINYINT(1)   NOT NULL DEFAULT 0,
   merch               TINYINT(1)   NOT NULL DEFAULT 0,
+  paid                TINYINT(1)   NOT NULL DEFAULT 0,
+  paid_date           DATE         NULL,
   notes               TEXT         NULL,
   contacts            JSON         NULL,
   ticket_links        JSON         NULL,

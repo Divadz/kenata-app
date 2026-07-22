@@ -210,10 +210,6 @@ export function MetadataImport({ title, artist, current, onApply }: Props) {
           {msg.text}
         </p>
       )}
-
-      <a className="muted meta-credit" href="https://getsongbpm.com" target="_blank" rel="noopener noreferrer">
-        Tonalité & tempo via GetSongBPM · durée via Deezer
-      </a>
     </div>
   );
 }

@@ -127,12 +127,20 @@ export interface ConcertSummary {
   /** Date en option (pas encore confirmée) vs validée. */
   is_option?: boolean;
   merch?: boolean;
+  /** Concert passé réglé (cachet perçu). */
+  paid?: boolean;
+  /** Date du paiement (YYYY-MM-DD), renseignée au marquage « payé ». */
+  paid_date?: string | null;
   fee?: string | null;
   fee_guso?: boolean;
   target_duration_min: number | null;
   setlist_id: string | null;
   setlist_name?: string | null;
   setlist_sec?: string | number | null;
+  /** Fournis par la liste pour la home (navigation + contacts) et la recherche. */
+  address?: string | null;
+  contacts?: ConcertContacts | null;
+  notes?: string | null;
 }
 
 export interface ConcertDetail extends ConcertSummary {

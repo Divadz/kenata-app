@@ -19,7 +19,25 @@ export function GroupSettings() {
       <GearInventory />
       <SectionOrderSettings />
       <AppMaintenance />
+      <AccountSection />
     </section>
+  );
+}
+
+/** Compte connecté + déconnexion. */
+function AccountSection() {
+  const { member, logout } = useAuth();
+  return (
+    <div className="card form full">
+      <h3>Compte</h3>
+      <p className="muted small">
+        Connecté en tant que <strong>{member?.profile?.name || member?.email}</strong>
+        {member?.email && member?.profile?.name ? ` (${member.email})` : ''} · rôle {member?.role}.
+      </p>
+      <button className="btn" onClick={() => logout()}>
+        Déconnexion
+      </button>
+    </div>
   );
 }
 

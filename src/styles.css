@@ -55,6 +55,7 @@ h1, h2, h3 { margin: 0 0 0.2em; line-height: 1.1; }
 /* Titres de section : sans-serif, casse naturelle. */
 h1 { font-size: clamp(1.7rem, 4vw, 2.3rem); font-weight: 800; letter-spacing: -0.02em; }
 h2 { font-size: 1.35rem; font-weight: 800; letter-spacing: -0.01em; }
+h2.hello { font-size: 1.1rem; font-weight: 700; }
 
 /* Marque KENATA : police du logo (grunge), capitales. Reservee au nom du groupe. */
 .logo {
@@ -108,12 +109,25 @@ button, a, select, input, textarea { -webkit-tap-highlight-color: transparent; }
 
 .shell { min-height: 100vh; display: flex; flex-direction: column; }
 .topbar {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.75rem;
   padding: 0.7rem 1rem;
   border-bottom: 1px solid var(--line);
   background: linear-gradient(var(--panel), var(--ink));
+}
+/* Bouton burger : masqué en desktop, visible en mobile. */
+.burger {
+  display: none;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  font-size: 1.2rem;
+  line-height: 1;
+  padding: 0.35rem 0.6rem;
+  cursor: pointer;
 }
 .brand {
   font-family: var(--display);
@@ -124,7 +138,8 @@ button, a, select, input, textarea { -webkit-tap-highlight-color: transparent; }
 }
 .spacer { flex: 1; }
 
-.tabs { display: flex; flex-wrap: wrap; gap: 0.25rem; padding: 0.4rem 1rem; border-bottom: 1px solid var(--line); }
+/* Menu principal — désormais intégré au header (inline en desktop). */
+.tabs { display: flex; flex-wrap: wrap; gap: 0.25rem; }
 .tabs a {
   color: var(--muted);
   text-decoration: none;
@@ -190,6 +205,8 @@ button, a, select, input, textarea { -webkit-tap-highlight-color: transparent; }
 .btn.primary:hover { background: #ffb264; border-color: #ffb264; }
 .btn.small { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
 .btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); }
+.btn.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
+.btn.ok:hover { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); }
 .btn.danger:hover { border-color: var(--danger); }
 .btn:disabled { opacity: 0.55; cursor: default; }
 
@@ -351,6 +368,25 @@ code { font-family: var(--mono); font-size: 0.85em; color: var(--cyan); }
 .input-btn .grow { flex: 1 1 auto; min-width: 0; }
 @media (max-width: 640px) {
   .contact-grid { flex-direction: column; }
+
+  /* Menu burger : le menu se replie en panneau déroulant sous le header. */
+  .burger { display: block; }
+  .topbar .tabs {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.5rem;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+    z-index: 40;
+  }
+  .topbar .tabs.open { display: flex; }
+  .topbar .tabs a { padding: 0.65rem 0.75rem; font-size: 1rem; }
 }
 
 /* Chips matos (cochables) — bouton de console avec LED */
@@ -431,6 +467,33 @@ code { font-family: var(--mono); font-size: 0.85em; color: var(--cyan); }
 .onboard-check { color: var(--cyan); }
 
 /* ---- Cartes concert (Lot 3) ---- */
+/* Barre de recherche (liste des concerts). */
+.search-bar { display: flex; align-items: center; gap: 0.6rem; }
+.search-field { position: relative; flex: 1; min-width: 0; }
+.search-field input { width: 100%; padding-right: 2.2rem; }
+/* Masque la croix native de type="search" (on fournit la nôtre). */
+.search-field input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+.search-clear {
+  position: absolute;
+  right: 0.4rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.search-clear:hover { color: var(--text); background: var(--line); }
+
 .ccard { display: flex; flex-direction: column; gap: 0.55rem; padding: 0.9rem; }
 .ccard-top { display: flex; gap: 0.7rem; align-items: flex-start; }
 .date-tile {
@@ -445,10 +508,16 @@ code { font-family: var(--mono); font-size: 0.85em; color: var(--cyan); }
 .date-tile .wd { display: block; font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 1px; }
 .date-tile .d { display: block; font-family: var(--mono); font-size: 1.45rem; font-weight: 700; color: var(--amber); line-height: 1; }
 .date-tile .m { display: block; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-top: 2px; }
+.date-tile .y { display: block; font-family: var(--mono); font-size: 0.6rem; font-weight: 700; color: var(--amber); letter-spacing: 0.04em; margin-top: 1px; }
 .date-tile.tbd { border-color: var(--line); background: var(--panel-2); }
 .date-tile.tbd .d { font-size: 1.3rem; color: var(--muted); }
 .ccard-head { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.35rem; }
 .ccard-venue { font-weight: 700; font-size: 1.05rem; line-height: 1.15; overflow-wrap: anywhere; }
+.link-plain { color: var(--text); text-decoration: none; }
+.link-plain:hover { color: var(--amber); }
+/* Rangée d'actions des cards home (navigation + appel). */
+.ccard-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; border-top: 1px solid var(--line-soft); padding-top: 0.55rem; }
+.ccard-actions .btn { text-decoration: none; }
 .ccard-badges { display: flex; gap: 0.3rem; flex-wrap: wrap; }
 .ccard-badges .badge { margin-left: 0; }
 .ccard-count { color: var(--muted); font-size: 0.82rem; }
@@ -458,6 +527,9 @@ code { font-family: var(--mono); font-size: 0.85em; color: var(--cyan); }
 /* Variantes de badge : privé rouge, public vert, merch orange (base) */
 .badge.priv { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); }
 .badge.pub { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
+.badge.paid { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); background: color-mix(in srgb, var(--ok) 12%, transparent); }
+/* Case « Voir tout » à côté du titre des concerts passés. */
+.show-all { font-size: 0.82rem; color: var(--muted); white-space: nowrap; }
 /* Badge « option » : pastille ambre pleine (statut, pas une catégorie). */
 .badge.option { color: var(--amber-ink); background: var(--amber); border-color: var(--amber); }
 /* Carte d'un concert en option : grisée, remise en avant au survol. */

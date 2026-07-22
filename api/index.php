@@ -951,6 +951,7 @@ function present_concert(array $row): array
     $row['fee_guso'] = (bool) $row['fee_guso'];
     $row['merch'] = (bool) $row['merch'];
     $row['is_option'] = (bool) $row['is_option'];
+    $row['paid'] = (bool) $row['paid'];
     $row['target_duration_min'] = $row['target_duration_min'] !== null ? (int) $row['target_duration_min'] : null;
     return $row;
 }
@@ -993,6 +994,13 @@ function sanitize_concert(array $b): array
     if (array_key_exists('is_option', $b)) {
         $out['is_option'] = !empty($b['is_option']) ? 1 : 0;
     }
+    if (array_key_exists('paid', $b)) {
+        $out['paid'] = !empty($b['paid']) ? 1 : 0;
+    }
+    if (array_key_exists('paid_date', $b)) {
+        $d = trim((string) ($b['paid_date'] ?? ''));
+        $out['paid_date'] = preg_match('/^\d{4}-\d{2}-\d{2}$/', $d) ? $d : null;
+    }
     if (array_key_exists('visibility', $b)) {
         $out['visibility'] = ($b['visibility'] ?? '') === 'public' ? 'public' : 'private';
     }
@@ -1013,7 +1021,7 @@ function concerts_list(): never
     Auth::requireMember();
     $stmt = db()->prepare(
         "SELECT c.id, c.date, c.start_time, c.arrival_time, c.venue_name, c.visibility, c.is_option, c.merch,
-            c.fee, c.fee_guso, c.target_duration_min, c.setlist_id,
+            c.paid, c.paid_date, c.fee, c.fee_guso, c.target_duration_min, c.setlist_id, c.address, c.contacts, c.notes,
             s.name AS setlist_name,
             (SELECT COALESCE(SUM(CASE WHEN i.type = 'song' THEN so.duration_sec ELSE i.est_duration_sec END), 0)
                FROM setlist_items i LEFT JOIN songs so ON so.id = i.song_id
@@ -1026,6 +1034,9 @@ function concerts_list(): never
         $r['merch'] = (bool) $r['merch'];
         $r['fee_guso'] = (bool) $r['fee_guso'];
         $r['is_option'] = (bool) $r['is_option'];
+        $r['paid'] = (bool) $r['paid'];
+        // Contacts (JSON) décodés pour la home (régie son / organisateur).
+        $r['contacts'] = $r['contacts'] ? json_decode($r['contacts'], true) : null;
         return $r;
     }, $stmt->fetchAll());
     json_response($rows);
