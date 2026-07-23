@@ -56,7 +56,7 @@ export function printSetlist(name: string, items: SetlistItem[], duration = ''):
   .num { min-width: 1.6em; text-align: right; font-variant-numeric: tabular-nums; color: #666; font-weight: 700; }
   /* Morceau sur une seule ligne obligatoire : pas de retour à la ligne. */
   .title { flex: 1; font-weight: 800; text-transform: uppercase; white-space: nowrap; }
-  .bpm { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 800; }
+  .bpm { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; }
   li.free { font-style: italic; color: #333; text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.7em; border-bottom: none; padding-top: 0.4em; white-space: nowrap; }
   @page { size: A4 portrait; margin: 8mm; }
 </style>
