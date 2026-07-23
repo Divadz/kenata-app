@@ -467,6 +467,11 @@ code { font-family: var(--mono); font-size: 0.85em; color: var(--cyan); }
 .onboard-check { color: var(--cyan); }
 
 /* ---- Cartes concert (Lot 3) ---- */
+/* Diagnostic écran (Réglages / Maintenance). */
+.screen-info { margin-top: 0.9rem; border-top: 1px solid var(--line-soft); padding-top: 0.6rem; }
+.screen-info .list li { display: flex; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+.screen-info .list li > span:last-child { color: var(--text); }
+
 /* Sections de réglages repliables. */
 .settings-section { padding: 0; overflow: hidden; }
 .settings-summary {

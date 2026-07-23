@@ -258,7 +258,71 @@ function AppMaintenance() {
       <button className="btn" onClick={hardReload} disabled={busy}>
         {busy ? 'Rechargement…' : '↻ Tout recharger (vider le cache)'}
       </button>
+      <ScreenInfo />
     </>
+  );
+}
+
+/** Diagnostic responsive : taille du viewport CSS (clé pour les media queries) + écran. */
+function ScreenInfo() {
+  const read = () => ({
+    vw: window.innerWidth,
+    vh: window.innerHeight,
+    sw: window.screen.width,
+    sh: window.screen.height,
+    dpr: Math.round(window.devicePixelRatio * 100) / 100,
+    vvw: window.visualViewport ? Math.round(window.visualViewport.width) : null,
+    vvh: window.visualViewport ? Math.round(window.visualViewport.height) : null,
+    portrait: window.matchMedia('(orientation: portrait)').matches,
+  });
+  const [i, setI] = useState(read);
+
+  useEffect(() => {
+    const on = () => setI(read());
+    window.addEventListener('resize', on);
+    window.addEventListener('orientationchange', on);
+    window.visualViewport?.addEventListener('resize', on);
+    return () => {
+      window.removeEventListener('resize', on);
+      window.removeEventListener('orientationchange', on);
+      window.visualViewport?.removeEventListener('resize', on);
+    };
+  }, []);
+
+  // Seuils de l'app : ≤640 = mobile (menu burger, colonnes empilées).
+  const bp =
+    i.vw <= 560 ? 'très étroit (≤560)' : i.vw <= 640 ? 'mobile (≤640)' : i.vw <= 900 ? 'intermédiaire (≤900)' : 'large (>900)';
+
+  return (
+    <div className="screen-info">
+      <h4>Diagnostic écran</h4>
+      <ul className="list small">
+        <li>
+          <span>Viewport CSS <em>(media queries)</em></span>
+          <span className="mono">{i.vw} × {i.vh} px · {bp}</span>
+        </li>
+        <li>
+          <span>Zone visible</span>
+          <span className="mono">{i.vvw ?? '?'} × {i.vvh ?? '?'} px</span>
+        </li>
+        <li>
+          <span>Écran</span>
+          <span className="mono">{i.sw} × {i.sh} px</span>
+        </li>
+        <li>
+          <span>Densité</span>
+          <span className="mono">{i.dpr}× (physique ≈ {Math.round(i.sw * i.dpr)} × {Math.round(i.sh * i.dpr)})</span>
+        </li>
+        <li>
+          <span>Orientation</span>
+          <span className="mono">{i.portrait ? 'portrait' : 'paysage'}</span>
+        </li>
+      </ul>
+      <p className="muted small">
+        Le <strong>viewport CSS</strong> est la mesure qui pilote le responsive. Tourne ou
+        redimensionne : les valeurs se mettent à jour en direct.
+      </p>
+    </div>
   );
 }
 
