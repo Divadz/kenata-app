@@ -3,12 +3,14 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import type {
   ConcertContacts,
   ConcertDetail,
-  ContactInfo,
   RoadmapItem,
   TicketLink,
 } from '../../types/models';
 import { DurationSelect } from '../../components/DurationSelect';
 import { AddressAutocomplete } from '../../components/AddressAutocomplete';
+import { ContactField } from '../contacts/ContactField';
+import { useContacts } from '../contacts/useContacts';
+import { PayModal, fullDate } from './PayModal';
 import { useAuth } from '../../auth/AuthProvider';
 import { useSetlists } from '../setlists/useSetlists';
 import { useGearItems } from '../gear/useGearItems';
@@ -40,11 +42,13 @@ export function ConcertEditor() {
   const { setlists } = useSetlists();
   const { items: gearItems } = useGearItems();
   const { concerts } = useConcerts();
+  const { contacts: directory, reload: reloadDir } = useContacts();
 
   const [c, setC] = useState<ConcertDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [payOpen, setPayOpen] = useState(false);
   const [posterError, setPosterError] = useState(false);
   const [posterMsg, setPosterMsg] = useState<string | null>(null);
   const cRef = useRef<ConcertDetail | null>(null);
@@ -75,13 +79,20 @@ export function ConcertEditor() {
   });
 
   const contacts = c.contacts ?? {};
-  function setContact(role: Role, field: keyof ContactInfo, value: string) {
+  // Lie (ou délie) un contact du répertoire à un rôle, puis sauvegarde.
+  function setContactRef(role: Role, contactId: string | null) {
     setC((prev) => {
       if (!prev) return prev;
       const cs: ConcertContacts = { ...(prev.contacts ?? {}) };
-      cs[role] = { ...(cs[role] ?? {}), [field]: value };
+      if (contactId) cs[role] = { contact_id: contactId };
+      else delete cs[role];
       return { ...prev, contacts: cs };
     });
+    // cRef est mis à jour au prochain rendu ; on sauvegarde la valeur explicitement.
+    const next: ConcertContacts = { ...(cRef.current?.contacts ?? {}) };
+    if (contactId) next[role] = { contact_id: contactId };
+    else delete next[role];
+    save({ contacts: next });
   }
   function setContractAddress(value: string) {
     setC((prev) => (prev ? { ...prev, contacts: { ...(prev.contacts ?? {}), contract_address: value } } : prev));
@@ -310,64 +321,16 @@ export function ConcertEditor() {
       <div className="card form full" key="contacts">
         <h3>Contacts</h3>
         <div className="stack full" style={{ gap: '0.75rem' }}>
-          {ROLES.map((r) => {
-            const phone = contacts[r.id]?.phone ?? '';
-            const email = contacts[r.id]?.email ?? '';
-            return (
-              <div key={r.id} className="field full">
-                <span>{r.label}</span>
-                <div className="contact-grid">
-                  <input
-                    className="grow"
-                    aria-label={`${r.label} — nom`}
-                    placeholder="Nom"
-                    value={contacts[r.id]?.name ?? ''}
-                    onChange={(e) => setContact(r.id, 'name', e.target.value)}
-                    onBlur={saveContacts}
-                  />
-                  <div className="input-btn">
-                    <input
-                      className="grow"
-                      aria-label={`${r.label} — téléphone`}
-                      placeholder="Téléphone"
-                      value={phone}
-                      onChange={(e) => setContact(r.id, 'phone', e.target.value)}
-                      onBlur={saveContacts}
-                    />
-                    {phone.trim() ? (
-                      <a className="btn small icon-btn" href={`tel:${phone.replace(/\s/g, '')}`} aria-label={`Appeler ${r.label}`}>
-                        📞
-                      </a>
-                    ) : (
-                      <button className="btn small icon-btn" disabled aria-label="Appeler">
-                        📞
-                      </button>
-                    )}
-                  </div>
-                  <div className="input-btn">
-                    <input
-                      className="grow"
-                      type="email"
-                      aria-label={`${r.label} — email`}
-                      placeholder="Mail"
-                      value={email}
-                      onChange={(e) => setContact(r.id, 'email', e.target.value)}
-                      onBlur={saveContacts}
-                    />
-                    {email.trim() ? (
-                      <a className="btn small icon-btn" href={`mailto:${email.trim()}`} aria-label={`Écrire à ${r.label}`}>
-                        ✉
-                      </a>
-                    ) : (
-                      <button className="btn small icon-btn" disabled aria-label="Écrire un mail">
-                        ✉
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {ROLES.map((r) => (
+            <ContactField
+              key={r.id}
+              label={r.label}
+              contacts={directory}
+              value={contacts[r.id]?.contact_id ?? null}
+              onChange={(cid) => setContactRef(r.id, cid)}
+              reloadDir={reloadDir}
+            />
+          ))}
           <label className="field full">
             <span>Adresse contrat</span>
             <textarea
@@ -456,11 +419,11 @@ export function ConcertEditor() {
       </div>
     ),
 
-    lieu: (
-      <div className="card form full" key="lieu">
-        <h3>Lieu &amp; accès</h3>
-        <div className="grid2">
-          <label className="field">
+    adresse: (
+      <div className="card form full" key="adresse">
+        <h3>Adresse &amp; conditions</h3>
+        <div className="stack full" style={{ gap: '0.75rem' }}>
+          <label className="field full">
             <span>Adresse</span>
             <div className="input-btn">
               <AddressAutocomplete
@@ -482,27 +445,7 @@ export function ConcertEditor() {
               )}
             </div>
           </label>
-          <label className="field">
-            <span>Stationnement</span>
-            <input placeholder="Parking…" {...t('parking')} />
-          </label>
-        </div>
-      </div>
-    ),
-
-    loge: (
-      <div className="card form full" key="loge">
-        <h3>Loge &amp; conditions</h3>
-        <div className="grid2">
-          <label className="field">
-            <span>Loge / accès</span>
-            <input placeholder="Loge…" {...t('greenroom')} />
-          </label>
-          <label className="field">
-            <span>Repas prévu</span>
-            <input placeholder="Catering…" {...t('catering')} />
-          </label>
-          <label className="field">
+          <label className="field full">
             <span>Cachet</span>
             <div className="row">
               <input className="grow" placeholder="Montant / modalités" {...t('fee')} />
@@ -522,18 +465,40 @@ export function ConcertEditor() {
                   type="checkbox"
                   checked={!!c.paid}
                   onChange={(e) => {
-                    setField('paid', e.target.checked);
-                    save({ paid: e.target.checked });
+                    if (e.target.checked) {
+                      // Demande la date de paiement avant de valider.
+                      setPayOpen(true);
+                    } else {
+                      setField('paid', false);
+                      setField('paid_date', null);
+                      save({ paid: false, paid_date: null });
+                    }
                   }}
                 />{' '}
-                Payé
+                {c.paid && c.paid_date ? `Payé le ${fullDate(c.paid_date)}` : 'Payé'}
               </label>
             </div>
           </label>
-          <label className="field">
-            <span>Hébergement</span>
-            <input placeholder="Hôtel / nuit sur place" {...t('lodging')} />
-          </label>
+          <div className="grid2">
+            <label className="field">
+              <span>Loge / accès</span>
+              <input placeholder="Loge…" {...t('greenroom')} />
+            </label>
+            <label className="field">
+              <span>Repas prévu</span>
+              <input placeholder="Catering…" {...t('catering')} />
+            </label>
+          </div>
+          <div className="grid2">
+            <label className="field">
+              <span>Stationnement</span>
+              <input placeholder="Parking…" {...t('parking')} />
+            </label>
+            <label className="field">
+              <span>Hébergement</span>
+              <input placeholder="Hôtel / nuit sur place" {...t('lodging')} />
+            </label>
+          </div>
         </div>
       </div>
     ),
@@ -639,6 +604,20 @@ export function ConcertEditor() {
 
       {essentiel}
       {sectionOrder.map((k) => sections[k])}
+
+      {payOpen && (
+        <PayModal
+          venueName={c.venue_name}
+          date={c.date}
+          onCancel={() => setPayOpen(false)}
+          onConfirm={(date) => {
+            setField('paid', true);
+            setField('paid_date', date);
+            save({ paid: true, paid_date: date });
+            setPayOpen(false);
+          }}
+        />
+      )}
     </section>
   );
 }

@@ -210,12 +210,29 @@ CREATE TABLE IF NOT EXISTS booking_leads (
   notes              TEXT         NULL,
   exchanges          JSON         NULL,
   concert_id         CHAR(36)     NULL,
+  contact_id         CHAR(36)     NULL,
   created_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_group_stage (group_id, stage),
   CONSTRAINT fk_lead_group   FOREIGN KEY (group_id)   REFERENCES app_group(id) ON DELETE CASCADE,
   CONSTRAINT fk_lead_concert FOREIGN KEY (concert_id) REFERENCES concerts(id)  ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Répertoire de contacts (source de vérité unique, partagée Concerts + Booking).
+-- Les concerts/leads référencent un contact ; corriger une fiche corrige partout.
+CREATE TABLE IF NOT EXISTS contacts (
+  id         CHAR(36)     NOT NULL,
+  group_id   VARCHAR(64)  NOT NULL,
+  name       VARCHAR(255) NOT NULL,
+  phone      VARCHAR(64)  NULL,
+  email      VARCHAR(255) NULL,
+  notes      VARCHAR(512) NULL,
+  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_group_name (group_id, name),
+  CONSTRAINT fk_contact_group FOREIGN KEY (group_id) REFERENCES app_group(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Abonnements aux notifications push (Lot 6). Un membre peut avoir plusieurs

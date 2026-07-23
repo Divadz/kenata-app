@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { formatHM } from '../../utils/duration';
 import type { ConcertSummary, ContactInfo } from '../../types/models';
 import { countdownLabel, createConcert, daysUntil, updateConcert, useConcerts } from './useConcerts';
+import { PayModal, shortDate } from './PayModal';
 
 /** Normalise pour une recherche insensible aux accents et à la casse. */
 function norm(s: string): string {
@@ -40,13 +41,6 @@ function searchText(c: ConcertSummary): string {
   if (c.fee_guso) parts.push('guso');
   if (c.is_option) parts.push('option');
   return norm(parts.join(' '));
-}
-
-/** Formate une date ISO (YYYY-MM-DD) en JJ/MM/AA. */
-function shortDate(iso?: string | null): string {
-  if (!iso) return '';
-  const d = new Date(iso + 'T00:00:00');
-  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
 function ConcertCard({ c, onMarkPaid }: { c: ConcertSummary; onMarkPaid?: () => void }) {
@@ -130,60 +124,6 @@ function ConcertCard({ c, onMarkPaid }: { c: ConcertSummary; onMarkPaid?: () => 
         </div>
       )}
     </Link>
-  );
-}
-
-/** Date du jour au format YYYY-MM-DD (fuseau local). */
-function todayISO(): string {
-  const d = new Date();
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-}
-
-/** Popup de saisie de la date de paiement avant de marquer un concert « payé ». */
-function PayModal({
-  concert,
-  onCancel,
-  onConfirm,
-}: {
-  concert: ConcertSummary;
-  onCancel: () => void;
-  onConfirm: (date: string) => void;
-}) {
-  const [date, setDate] = useState(todayISO());
-  const [busy, setBusy] = useState(false);
-
-  async function confirm() {
-    setBusy(true);
-    try {
-      await onConfirm(date);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="modal-backdrop" onClick={onCancel}>
-      <div className="modal stack" style={{ maxWidth: 380 }} onClick={(e) => e.stopPropagation()}>
-        <h3>Concert payé</h3>
-        <p className="muted small">
-          {concert.venue_name || 'Ce concert'}
-          {concert.date ? ` · ${shortDate(concert.date)}` : ''}
-        </p>
-        <label className="field">
-          <span>Date du paiement</span>
-          <input type="date" value={date} max={todayISO()} onChange={(e) => setDate(e.target.value)} />
-        </label>
-        <div className="row" style={{ justifyContent: 'flex-end', gap: '0.5rem' }}>
-          <button className="btn" onClick={onCancel} disabled={busy}>
-            Annuler
-          </button>
-          <button className="btn primary" onClick={confirm} disabled={busy || !date}>
-            {busy ? 'Enregistrement…' : 'Valider'}
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -334,7 +274,12 @@ export function ConcertsPage() {
       )}
 
       {payTarget && (
-        <PayModal concert={payTarget} onCancel={() => setPayTarget(null)} onConfirm={markPaid} />
+        <PayModal
+          venueName={payTarget.venue_name}
+          date={payTarget.date}
+          onCancel={() => setPayTarget(null)}
+          onConfirm={markPaid}
+        />
       )}
     </section>
   );

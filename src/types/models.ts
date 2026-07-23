@@ -90,7 +90,18 @@ export interface SetlistDetail {
 
 // --- Lot 3 : Concerts & Matos ---
 
+/** Fiche du répertoire de contacts (source de vérité unique). */
+export interface Contact {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  notes?: string | null;
+}
+
 export interface ContactInfo {
+  /** Référence vers la fiche du répertoire. */
+  contact_id?: string;
   name?: string;
   phone?: string;
   email?: string;
@@ -204,4 +215,6 @@ export interface BookingLead {
   notes: string | null;
   exchanges: BookingExchange[];
   concert_id: string | null;
+  /** Référence vers la fiche du répertoire (source de vérité du contact). */
+  contact_id: string | null;
 }

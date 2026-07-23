@@ -10,6 +10,7 @@ import { SharedSetlist } from './features/setlists/SharedSetlist';
 import { ConcertsPage } from './features/concerts/ConcertsPage';
 import { ConcertEditor } from './features/concerts/ConcertEditor';
 import { BookingPage } from './features/booking/BookingPage';
+import { ContactsPage } from './features/contacts/ContactsPage';
 import { GroupSettings } from './features/group/GroupSettings';
 
 /** Application authentifiée (accès membre requis). */
@@ -25,6 +26,7 @@ function AuthedApp() {
           <Route path="concerts" element={<ConcertsPage />} />
           <Route path="concerts/:id" element={<ConcertEditor />} />
           <Route path="booking" element={<BookingPage />} />
+          <Route path="contacts" element={<ContactsPage />} />
           {/* Membres est désormais une section de Réglages ; on redirige les anciens liens. */}
           <Route path="members" element={<Navigate to="/settings" replace />} />
           <Route path="settings" element={<GroupSettings />} />

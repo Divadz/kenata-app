@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { BookingExchange, BookingLead, BookingStage, ExchangeType } from '../../types/models';
 import { AddressAutocomplete } from '../../components/AddressAutocomplete';
+import { ContactField } from '../contacts/ContactField';
+import { useContacts } from '../contacts/useContacts';
 import { BOARD_STAGES, EXCHANGE_TYPES, exchangeIcon } from './constants';
 import { confirmLead, createLead, deleteLead, updateLead } from './useBooking';
 
@@ -24,6 +26,8 @@ export function LeadModal({ lead, initialStage, onClose, onSaved }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const { contacts: directory, reload: reloadDir } = useContacts();
 
   const set = <K extends keyof BookingLead>(k: K, v: BookingLead[K]) => setForm((f) => ({ ...f, [k]: v }));
   const exchanges = form.exchanges ?? [];
@@ -55,10 +59,8 @@ export function LeadModal({ lead, initialStage, onClose, onSaved }: Props) {
         stage: form.stage,
         city: form.city ?? null,
         type: form.type ?? null,
-        contact_name: form.contact_name ?? null,
+        contact_id: form.contact_id ?? null,
         link: form.link ?? null,
-        email: form.email ?? null,
-        phone: form.phone ?? null,
         est_fee: form.est_fee ?? null,
         capacity: form.capacity ?? null,
         source: form.source ?? null,
@@ -140,43 +142,16 @@ export function LeadModal({ lead, initialStage, onClose, onSaved }: Props) {
             <span>Type (bar, salle, festival…)</span>
             <input value={form.type ?? ''} onChange={(e) => set('type', e.target.value)} />
           </label>
-          <label className="field">
-            <span>Contact (nom)</span>
-            <input value={form.contact_name ?? ''} onChange={(e) => set('contact_name', e.target.value)} />
-          </label>
+          <ContactField
+            label="Contact"
+            contacts={directory}
+            value={form.contact_id ?? null}
+            onChange={(cid) => set('contact_id', cid)}
+            reloadDir={reloadDir}
+          />
           <label className="field">
             <span>Lien (site / Insta)</span>
             <input value={form.link ?? ''} onChange={(e) => set('link', e.target.value)} placeholder="https://…" />
-          </label>
-          <label className="field">
-            <span>Email</span>
-            <div className="input-btn">
-              <input className="grow" type="email" value={form.email ?? ''} onChange={(e) => set('email', e.target.value)} />
-              {form.email?.trim() ? (
-                <a className="btn small icon-btn" href={`mailto:${form.email.trim()}`} aria-label="Écrire un mail">
-                  ✉
-                </a>
-              ) : (
-                <button className="btn small icon-btn" disabled aria-label="Écrire un mail">
-                  ✉
-                </button>
-              )}
-            </div>
-          </label>
-          <label className="field">
-            <span>Téléphone</span>
-            <div className="input-btn">
-              <input className="grow" value={form.phone ?? ''} onChange={(e) => set('phone', e.target.value)} />
-              {form.phone?.trim() ? (
-                <a className="btn small icon-btn" href={`tel:${form.phone.replace(/\s/g, '')}`} aria-label="Appeler">
-                  📞
-                </a>
-              ) : (
-                <button className="btn small icon-btn" disabled aria-label="Appeler">
-                  📞
-                </button>
-              )}
-            </div>
           </label>
           <label className="field">
             <span>Cachet pressenti</span>

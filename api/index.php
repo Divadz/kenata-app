@@ -946,6 +946,8 @@ function present_concert(array $row): array
     foreach (CONCERT_JSON as $j) {
         $row[$j] = isset($row[$j]) && $row[$j] !== null ? json_decode($row[$j], true) : null;
     }
+    // Les contacts sont des références : on résout les fiches à jour du répertoire.
+    $row['contacts'] = resolve_concert_contacts($row['contacts']);
     $row['on_site'] = (bool) $row['on_site'];
     $row['poster_is_link'] = (bool) $row['poster_is_link'];
     $row['fee_guso'] = (bool) $row['fee_guso'];
@@ -1008,12 +1010,186 @@ function sanitize_concert(array $b): array
         $n = trim((string) ($b['notes'] ?? ''));
         $out['notes'] = $n === '' ? null : $n;
     }
+    if (array_key_exists('contacts', $b)) {
+        $out['contacts'] = sanitize_concert_contacts($b['contacts']);
+    }
     foreach (CONCERT_JSON as $j) {
+        if ($j === 'contacts') {
+            continue; // traité ci-dessus (références vers le répertoire)
+        }
         if (array_key_exists($j, $b)) {
             $out[$j] = $b[$j] === null ? null : json_encode($b[$j], JSON_UNESCAPED_UNICODE);
         }
     }
     return $out;
+}
+
+// ---------------------------------------------------------------------------
+// Répertoire de contacts (source de vérité unique, partagée Concerts + Booking)
+// ---------------------------------------------------------------------------
+
+const CONTACT_STRS = ['name' => 255, 'phone' => 64, 'email' => 255, 'notes' => 512];
+
+function present_contact(array $r): array
+{
+    return [
+        'id'    => $r['id'],
+        'name'  => $r['name'],
+        'phone' => $r['phone'],
+        'email' => $r['email'],
+        'notes' => $r['notes'] ?? null,
+    ];
+}
+
+/** Résout des contact_id en fiches [id => {id,name,phone,email}] (une requête). */
+function resolve_contact_ids(array $ids): array
+{
+    $ids = array_values(array_unique(array_filter($ids)));
+    if (!$ids) {
+        return [];
+    }
+    $ph = implode(',', array_fill(0, count($ids), '?'));
+    $stmt = db()->prepare("SELECT id, name, phone, email FROM contacts WHERE group_id = ? AND id IN ($ph)");
+    $stmt->execute(array_merge([group_id()], $ids));
+    $map = [];
+    foreach ($stmt->fetchAll() as $c) {
+        $map[$c['id']] = $c;
+    }
+    return $map;
+}
+
+/** Enrichit les rôles d'un objet contacts (déjà décodé) avec les fiches à jour. */
+function resolve_concert_contacts(mixed $cs, ?array $map = null): mixed
+{
+    if (!is_array($cs)) {
+        return $cs;
+    }
+    if ($map === null) {
+        $ids = [];
+        foreach (['org', 'sound', 'light'] as $role) {
+            if (!empty($cs[$role]['contact_id'])) {
+                $ids[] = $cs[$role]['contact_id'];
+            }
+        }
+        $map = resolve_contact_ids($ids);
+    }
+    foreach (['org', 'sound', 'light'] as $role) {
+        $cid = $cs[$role]['contact_id'] ?? null;
+        if ($cid && isset($map[$cid])) {
+            $cs[$role] = [
+                'contact_id' => $cid,
+                'name'       => $map[$cid]['name'],
+                'phone'      => $map[$cid]['phone'],
+                'email'      => $map[$cid]['email'],
+            ];
+        } elseif ($cid) {
+            $cs[$role] = ['contact_id' => $cid]; // fiche supprimée : résolue vide
+        }
+    }
+    return $cs;
+}
+
+/** Ne conserve que les références (contact_id validés) + l'adresse contrat. */
+function sanitize_concert_contacts(mixed $cs): ?string
+{
+    if (!is_array($cs)) {
+        return null;
+    }
+    $out = [];
+    foreach (['org', 'sound', 'light'] as $role) {
+        $cid = (is_array($cs[$role] ?? null) && !empty($cs[$role]['contact_id']))
+            ? (string) $cs[$role]['contact_id'] : null;
+        if ($cid !== null) {
+            $chk = db()->prepare('SELECT id FROM contacts WHERE id = ? AND group_id = ?');
+            $chk->execute([$cid, group_id()]);
+            if ($chk->fetch()) {
+                $out[$role] = ['contact_id' => $cid];
+            }
+        }
+    }
+    $addr = trim((string) ($cs['contract_address'] ?? ''));
+    if ($addr !== '') {
+        $out['contract_address'] = mb_substr($addr, 0, 2000);
+    }
+    return $out ? json_encode($out, JSON_UNESCAPED_UNICODE) : null;
+}
+
+function contacts_list(): never
+{
+    Auth::requireMember();
+    $q = trim((string) ($_GET['q'] ?? ''));
+    if ($q !== '') {
+        $stmt = db()->prepare('SELECT * FROM contacts WHERE group_id = ? AND name LIKE ? ORDER BY name LIMIT 50');
+        $stmt->execute([group_id(), '%' . $q . '%']);
+    } else {
+        $stmt = db()->prepare('SELECT * FROM contacts WHERE group_id = ? ORDER BY name');
+        $stmt->execute([group_id()]);
+    }
+    json_response(array_map('present_contact', $stmt->fetchAll()));
+}
+
+function contact_create(): never
+{
+    Auth::requireMember();
+    Auth::enforceCsrf();
+    $b = read_json();
+    $name = nullable_str($b['name'] ?? '', 255);
+    if ($name === null) {
+        json_response(['error' => 'name_required'], 422);
+    }
+    $id = uuidv4();
+    db()->prepare('INSERT INTO contacts (id, group_id, name, phone, email, notes) VALUES (?, ?, ?, ?, ?, ?)')
+        ->execute([
+            $id, group_id(), $name,
+            nullable_str($b['phone'] ?? '', 64),
+            nullable_str($b['email'] ?? '', 255),
+            nullable_str($b['notes'] ?? '', 512),
+        ]);
+    json_response(present_contact([
+        'id' => $id, 'name' => $name,
+        'phone' => nullable_str($b['phone'] ?? '', 64),
+        'email' => nullable_str($b['email'] ?? '', 255),
+        'notes' => nullable_str($b['notes'] ?? '', 512),
+    ]), 201);
+}
+
+function contact_update(string $id): never
+{
+    Auth::requireMember();
+    Auth::enforceCsrf();
+    $chk = db()->prepare('SELECT id FROM contacts WHERE id = ? AND group_id = ?');
+    $chk->execute([$id, group_id()]);
+    if (!$chk->fetch()) {
+        json_response(['error' => 'not_found'], 404);
+    }
+    $b = read_json();
+    $fields = [];
+    foreach (CONTACT_STRS as $k => $max) {
+        if (array_key_exists($k, $b)) {
+            $fields[$k] = nullable_str($b[$k], $max);
+        }
+    }
+    // Le nom ne peut pas être vidé.
+    if (array_key_exists('name', $fields) && $fields['name'] === null) {
+        unset($fields['name']);
+    }
+    if ($fields) {
+        $set = implode(', ', array_map(fn ($c) => "$c = :$c", array_keys($fields)));
+        db()->prepare("UPDATE contacts SET $set, updated_at = NOW() WHERE id = :id AND group_id = :gid")
+            ->execute($fields + ['id' => $id, 'gid' => group_id()]);
+    }
+    json_response(['ok' => true]);
+}
+
+function contact_delete(string $id): never
+{
+    Auth::requireMember();
+    Auth::enforceCsrf();
+    db()->prepare('DELETE FROM contacts WHERE id = ? AND group_id = ?')->execute([$id, group_id()]);
+    // Dé-référence les leads ; les concerts (JSON) résolvent une fiche absente en vide.
+    db()->prepare('UPDATE booking_leads SET contact_id = NULL WHERE contact_id = ? AND group_id = ?')
+        ->execute([$id, group_id()]);
+    json_response(['ok' => true]);
 }
 
 function concerts_list(): never
@@ -1035,10 +1211,23 @@ function concerts_list(): never
         $r['fee_guso'] = (bool) $r['fee_guso'];
         $r['is_option'] = (bool) $r['is_option'];
         $r['paid'] = (bool) $r['paid'];
-        // Contacts (JSON) décodés pour la home (régie son / organisateur).
         $r['contacts'] = $r['contacts'] ? json_decode($r['contacts'], true) : null;
         return $r;
     }, $stmt->fetchAll());
+    // Résolution des contacts en une seule requête (tous les concerts d'un coup).
+    $ids = [];
+    foreach ($rows as $r) {
+        foreach (['org', 'sound', 'light'] as $role) {
+            if (!empty($r['contacts'][$role]['contact_id'])) {
+                $ids[] = $r['contacts'][$role]['contact_id'];
+            }
+        }
+    }
+    $map = resolve_contact_ids($ids);
+    foreach ($rows as &$r) {
+        $r['contacts'] = resolve_concert_contacts($r['contacts'], $map);
+    }
+    unset($r);
     json_response($rows);
 }
 
@@ -1299,6 +1488,16 @@ function sanitize_lead(array $b): array
     if (array_key_exists('capacity', $b)) {
         $out['capacity'] = nullable_int($b['capacity']);
     }
+    if (array_key_exists('contact_id', $b)) {
+        $cid = trim((string) ($b['contact_id'] ?? ''));
+        if ($cid !== '') {
+            $chk = db()->prepare('SELECT id FROM contacts WHERE id = ? AND group_id = ?');
+            $chk->execute([$cid, group_id()]);
+            $out['contact_id'] = $chk->fetch() ? $cid : null;
+        } else {
+            $out['contact_id'] = null;
+        }
+    }
     if (array_key_exists('next_relance_date', $b)) {
         $d = trim((string) ($b['next_relance_date'] ?? ''));
         $out['next_relance_date'] = preg_match('/^\d{4}-\d{2}-\d{2}$/', $d) ? $d : null;
@@ -1321,6 +1520,16 @@ function present_lead(array $r): array
     $r['exchanges'] = isset($r['exchanges']) && $r['exchanges'] !== null ? json_decode($r['exchanges'], true) : [];
     $r['capacity'] = $r['capacity'] !== null ? (int) $r['capacity'] : null;
     $r['position'] = (int) $r['position'];
+    // Contact référencé : on affiche les infos à jour du répertoire.
+    if (!empty($r['contact_id'])) {
+        $map = resolve_contact_ids([$r['contact_id']]);
+        if (isset($map[$r['contact_id']])) {
+            $c = $map[$r['contact_id']];
+            $r['contact_name'] = $c['name'];
+            $r['phone'] = $c['phone'];
+            $r['email'] = $c['email'];
+        }
+    }
     return $r;
 }
 
@@ -1413,12 +1622,10 @@ function booking_confirm(string $id): never
     $g->execute([group_id()]);
     $gearJson = json_encode(array_column($g->fetchAll(), 'id'));
 
-    $org = array_filter([
-        'name'  => $lead['contact_name'] ?: null,
-        'phone' => $lead['phone'] ?: null,
-        'email' => $lead['email'] ?: null,
-    ]);
-    $contacts = $org ? json_encode(['org' => $org], JSON_UNESCAPED_UNICODE) : null;
+    // Contact référencé : on lie le même contact comme organisateur du concert.
+    $contacts = !empty($lead['contact_id'])
+        ? json_encode(['org' => ['contact_id' => $lead['contact_id']]], JSON_UNESCAPED_UNICODE)
+        : null;
 
     $notes = $lead['notes'];
     $extra = [];
@@ -1573,6 +1780,11 @@ $routes = [
     ['DELETE', '#^/setlists/([^/]+)/share$#',   'setlist_share_delete'],
 
     ['GET',    '#^/share/([^/]+)$#',            'share_get'],
+
+    ['GET',    '#^/contacts$#',                 'contacts_list'],
+    ['POST',   '#^/contacts$#',                 'contact_create'],
+    ['PATCH',  '#^/contacts/([^/]+)$#',         'contact_update'],
+    ['DELETE', '#^/contacts/([^/]+)$#',         'contact_delete'],
 
     ['GET',    '#^/concerts$#',                 'concerts_list'],
     ['POST',   '#^/concerts$#',                 'concerts_create'],
