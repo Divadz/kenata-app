@@ -230,6 +230,9 @@ input, select, textarea {
 }
 input:focus, select:focus, textarea:focus { border-color: var(--cyan); }
 textarea { resize: vertical; width: 100%; }
+/* Les inputs date/heure gardent une largeur intrinsèque (WebKit/mobile) : on les
+   force à remplir leur conteneur, sinon ils s'affichent à moitié de la largeur. */
+input[type="date"], input[type="time"] { width: 100%; min-width: 0; }
 
 .form { width: 100%; }
 .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; width: 100%; }
