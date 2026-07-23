@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useGroup } from '../features/group/useGroup';
 import { InstallPrompt } from './InstallPrompt';
 
@@ -10,7 +10,9 @@ export function AppShell() {
   return (
     <div className="shell">
       <header className="topbar">
-        <div className="brand">{meta?.name || 'Kenata'} 🤘</div>
+        <Link to="/" className="brand" onClick={() => setMenuOpen(false)}>
+          {meta?.name || 'Kenata'}
+        </Link>
         <div className="spacer" />
         <button
           className="burger"

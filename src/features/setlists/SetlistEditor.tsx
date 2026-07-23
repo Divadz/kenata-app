@@ -5,6 +5,7 @@ import { formatDuration, formatHM, parseDuration } from '../../utils/duration';
 import { DurationSelect } from '../../components/DurationSelect';
 import { useSongs } from '../repertoire/useSongs';
 import { MOODS, type MoodId, moodLabel, randomPhrase } from './souffleur';
+import { printSetlist } from './printSetlist';
 import {
   createShare,
   deleteSetlist,
@@ -198,6 +199,9 @@ export function SetlistEditor() {
         </Link>
         <span className="row">
           {savedAt && <span className="muted small">{savedAt}</span>}
+          <button className="btn small" onClick={() => printSetlist(name, itemsRef.current, formatHM(totalSec))}>
+            🖨 Imprimer
+          </button>
           <button
             className="btn small"
             onClick={async () => {
