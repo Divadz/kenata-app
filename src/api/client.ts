@@ -51,9 +51,16 @@ export async function api<T = unknown>(path: string, opts: Options = {}): Promis
 }
 
 /** Envoi d'un fichier (multipart) avec l'en-tête CSRF ; ne pas fixer Content-Type. */
-export async function uploadFile<T = unknown>(path: string, file: File): Promise<T> {
+export async function uploadFile<T = unknown>(
+  path: string,
+  file: File,
+  fields?: Record<string, string>
+): Promise<T> {
   const fd = new FormData();
   fd.append('file', file);
+  if (fields) {
+    for (const [k, v] of Object.entries(fields)) fd.append(k, v);
+  }
   const res = await fetch(BASE + path, {
     method: 'POST',
     credentials: 'include',

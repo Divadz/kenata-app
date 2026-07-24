@@ -223,6 +223,8 @@ export interface Invoice {
   notes: string | null;
   /** Jeton de lien public (null si révoqué). */
   share_token: string | null;
+  /** Facture importée (PDF de l'ancien système) plutôt que générée. */
+  imported: boolean;
   created_at: string;
 }
 

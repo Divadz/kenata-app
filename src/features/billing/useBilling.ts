@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api } from '../../api/client';
+import { api, uploadFile } from '../../api/client';
 import type { BillingSettings, Invoice } from '../../types/models';
 
 export function useBilling() {
@@ -47,6 +47,20 @@ export function useInvoices(concertId?: string) {
 
 export function createInvoice(body: Record<string, unknown>) {
   return api<{ id: string; number: string }>('/invoices', { method: 'POST', body });
+}
+
+/** Importe un PDF de facture existante (ancien système). */
+export function importInvoice(
+  concertId: string,
+  file: File,
+  meta: { number: string; amount: string; issue_date: string }
+) {
+  return uploadFile<{ id: string; number: string }>('/invoices/import', file, {
+    concert_id: concertId,
+    number: meta.number,
+    amount: meta.amount,
+    issue_date: meta.issue_date,
+  });
 }
 
 export function deleteInvoice(id: string) {

@@ -6,6 +6,7 @@ import type { Invoice } from '../../types/models';
 import {
   createInvoice,
   deleteInvoice,
+  importInvoice,
   invoicePdfUrl,
   publicPdfUrl,
   sendInvoice,
@@ -54,6 +55,7 @@ export function InvoicePanel({
   const { invoices, reload } = useInvoices(concert.id);
   const { settings } = useBilling();
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [delMsg, setDelMsg] = useState<string | null>(null);
   const [sendTarget, setSendTarget] = useState<Invoice | null>(null);
 
@@ -107,15 +109,20 @@ export function InvoicePanel({
         </p>
       )}
 
-      {concert.fee_guso ? (
-        <p className="muted small">
-          🚫 Concert réglé au <strong>GUSO</strong> : pas de facture à émettre.
-        </p>
-      ) : (
-        <button className="btn primary" onClick={() => setOpen(true)}>
-          {invoices.length > 0 ? '+ Générer une autre facture' : '+ Générer une facture'}
+      <div className="row" style={{ gap: '0.5rem', flexWrap: 'wrap' }}>
+        {concert.fee_guso ? (
+          <span className="muted small">
+            🚫 Concert réglé au <strong>GUSO</strong> : pas de facture à émettre.
+          </span>
+        ) : (
+          <button className="btn primary" onClick={() => setOpen(true)}>
+            {invoices.length > 0 ? '+ Générer une autre facture' : '+ Générer une facture'}
+          </button>
+        )}
+        <button className="btn" onClick={() => setImportOpen(true)}>
+          ⬆ Importer un PDF
         </button>
-      )}
+      </div>
 
       {open && (
         <InvoiceModal
@@ -123,6 +130,17 @@ export function InvoicePanel({
           groupName={groupName}
           onClose={() => setOpen(false)}
           onCreated={reload}
+        />
+      )}
+      {importOpen && (
+        <ImportModal
+          concert={concert}
+          onClose={() => setImportOpen(false)}
+          onImported={() => {
+            setImportOpen(false);
+            void reload();
+            onSent?.();
+          }}
         />
       )}
     </div>
@@ -168,6 +186,7 @@ function InvoiceRow({
       <div className="row between full">
         <span>
           <strong>{inv.number}</strong> · {frDate(inv.issue_date)} · {eur(inv.amount)}
+          {inv.imported && <span className="badge" style={{ marginLeft: '0.35rem' }}>importée</span>}
         </span>
         <span className="row">
           <a className="btn small" href={invoicePdfUrl(inv.id)} target="_blank" rel="noreferrer">
@@ -198,6 +217,96 @@ function InvoiceRow({
         )}
       </div>
     </li>
+  );
+}
+
+function ImportModal({
+  concert,
+  onClose,
+  onImported,
+}: {
+  concert: ConcertDetail;
+  onClose: () => void;
+  onImported: () => void;
+}) {
+  const [file, setFile] = useState<File | null>(null);
+  const [number, setNumber] = useState('');
+  const [amount, setAmount] = useState(String(parseAmount(concert.fee)));
+  const [issueDate, setIssueDate] = useState(concert.date ?? todayISO());
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit() {
+    if (!file || !number.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await importInvoice(concert.id, file, { number: number.trim(), amount, issue_date: issueDate });
+      onImported();
+    } catch (e) {
+      const code = e instanceof ApiError ? e.message : '';
+      setError(
+        code === 'not_pdf'
+          ? 'Le fichier doit être un PDF.'
+          : code === 'number_exists'
+            ? 'Ce numéro de facture existe déjà.'
+            : code === 'too_large'
+              ? 'Fichier trop volumineux (max 6 Mo).'
+              : "Échec de l'import."
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal stack" style={{ maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
+        <div className="row between full">
+          <h3>Importer une facture (PDF)</h3>
+          <button className="btn small" aria-label="Fermer" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+        <p className="muted small">
+          Pour un concert déjà facturé avec l'ancien système. Le concert sera marqué « facturé ».
+        </p>
+
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
+
+        <label className="field full">
+          <span>Fichier PDF</span>
+          <input type="file" accept="application/pdf,.pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+        </label>
+        <label className="field full">
+          <span>Numéro de facture</span>
+          <input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="ex. 2026-023" />
+        </label>
+        <div className="grid2">
+          <label className="field">
+            <span>Montant (€)</span>
+            <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" />
+          </label>
+          <label className="field">
+            <span>Date de facture</span>
+            <input type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} />
+          </label>
+        </div>
+
+        <div className="row" style={{ justifyContent: 'flex-end' }}>
+          <button className="btn" onClick={onClose} disabled={busy}>
+            Annuler
+          </button>
+          <button className="btn primary" onClick={submit} disabled={busy || !file || !number.trim()}>
+            {busy ? 'Import…' : 'Importer'}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

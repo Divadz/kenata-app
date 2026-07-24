@@ -1719,11 +1719,12 @@ function present_invoice(array $r): array
         'currency' => $r['currency'],
         'notes' => $r['notes'],
         'share_token' => $r['share_token'],
+        'imported' => (bool) $r['imported'],
         'created_at' => $r['created_at'],
     ];
 }
 
-const INVOICE_COLS = 'id, number, year, seq, concert_id, issue_date, due_date, service_date, client_block, object_label, designation, qty, unit_price, amount, currency, notes, share_token, created_at';
+const INVOICE_COLS = 'id, number, year, seq, concert_id, issue_date, due_date, service_date, client_block, object_label, designation, qty, unit_price, amount, currency, notes, share_token, imported, created_at';
 
 function invoices_list(): never
 {
@@ -1900,6 +1901,68 @@ function invoice_share_set(string $id): never
     json_response(['share_token' => $t]);
 }
 
+/** Importe un PDF de facture existante (ancien système) et flague le concert. */
+function invoice_import(): never
+{
+    Auth::requireOwner();
+    Auth::enforceCsrf();
+
+    if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+        json_response(['error' => 'no_file'], 422);
+    }
+    $data = file_get_contents($_FILES['file']['tmp_name']);
+    if ($data === false || strncmp($data, '%PDF', 4) !== 0) {
+        json_response(['error' => 'not_pdf'], 422);
+    }
+    if (strlen($data) > 6 * 1024 * 1024) {
+        json_response(['error' => 'too_large'], 422);
+    }
+
+    $number = trim((string) ($_POST['number'] ?? ''));
+    if ($number === '') {
+        json_response(['error' => 'number_required'], 422);
+    }
+    $amount = round((float) str_replace(',', '.', (string) ($_POST['amount'] ?? '0')), 2);
+    $issue = trim((string) ($_POST['issue_date'] ?? ''));
+    $issueDate = preg_match('/^\d{4}-\d{2}-\d{2}$/', $issue) ? $issue : date('Y-m-d');
+
+    $concertId = null;
+    if (!empty($_POST['concert_id'])) {
+        $chk = db()->prepare('SELECT id FROM concerts WHERE id = ? AND group_id = ?');
+        $chk->execute([$_POST['concert_id'], group_id()]);
+        if ($chk->fetch()) {
+            $concertId = (string) $_POST['concert_id'];
+        }
+    }
+
+    // Année depuis le numéro (format …AAAA-NNN) sinon depuis la date. seq = NULL
+    // (les factures importées ne participent pas à la numérotation générée).
+    $year = (int) substr($issueDate, 0, 4);
+    if (preg_match('/(\d{4})-\d{1,4}$/', $number, $m)) {
+        $year = (int) $m[1];
+    }
+
+    $id = uuidv4();
+    $shareToken = bin2hex(random_bytes(16));
+    try {
+        db()->prepare(
+            'INSERT INTO invoices (id, group_id, number, year, seq, concert_id, issue_date, amount, currency, pdf_data, share_token, imported)
+             VALUES (?, ?, ?, ?, NULL, ?, ?, ?, "EUR", ?, ?, 1)'
+        )->execute([$id, group_id(), $number, $year, $concertId, $issueDate, $amount, $data, $shareToken]);
+    } catch (PDOException $e) {
+        if ($e->getCode() === '23000') {
+            json_response(['error' => 'number_exists'], 409);
+        }
+        throw $e;
+    }
+
+    if ($concertId) {
+        db()->prepare('UPDATE concerts SET invoice_sent_at = NOW() WHERE id = ? AND group_id = ?')
+            ->execute([$concertId, group_id()]);
+    }
+    json_response(['id' => $id, 'number' => $number], 201);
+}
+
 /** Envoie la facture par mail (PDF en pièce jointe) et flague le concert. */
 function invoice_send(string $id): never
 {
@@ -1956,27 +2019,32 @@ function invoice_delete(string $id): never
     $pdo = db();
     $pdo->beginTransaction();
     try {
-        $st = $pdo->prepare('SELECT year, seq FROM invoices WHERE id = ? AND group_id = ? FOR UPDATE');
+        $st = $pdo->prepare('SELECT year, seq, imported FROM invoices WHERE id = ? AND group_id = ? FOR UPDATE');
         $st->execute([$id, group_id()]);
         $row = $st->fetch();
         if (!$row) {
             $pdo->rollBack();
             json_response(['error' => 'not_found'], 404);
         }
-        // Seule la dernière facture émise de l'année peut être supprimée (continuité).
-        $mx = $pdo->prepare('SELECT COALESCE(MAX(seq), 0) AS mx FROM invoices WHERE group_id = ? AND year = ?');
-        $mx->execute([group_id(), (int) $row['year']]);
-        if ((int) $row['seq'] !== (int) $mx->fetch()['mx']) {
-            $pdo->rollBack();
-            json_response(['error' => 'not_last_invoice'], 409);
-        }
-        $pdo->prepare('DELETE FROM invoices WHERE id = ? AND group_id = ?')->execute([$id, group_id()]);
-        // Recule le compteur pour réutiliser ce numéro.
-        $issuer = billing_load();
-        if ((int) ($issuer['next_year'] ?? 0) === (int) $row['year']) {
-            $issuer['next_seq'] = (int) $row['seq'];
-            $pdo->prepare('UPDATE app_group SET invoice_settings = ? WHERE id = ?')
-                ->execute([json_encode($issuer, JSON_UNESCAPED_UNICODE), group_id()]);
+        // Facture générée : seule la dernière de l'année est supprimable (continuité).
+        // Facture importée (seq NULL) : toujours supprimable, sans toucher au compteur.
+        if (!$row['imported']) {
+            $mx = $pdo->prepare('SELECT COALESCE(MAX(seq), 0) AS mx FROM invoices WHERE group_id = ? AND year = ?');
+            $mx->execute([group_id(), (int) $row['year']]);
+            if ((int) $row['seq'] !== (int) $mx->fetch()['mx']) {
+                $pdo->rollBack();
+                json_response(['error' => 'not_last_invoice'], 409);
+            }
+            $pdo->prepare('DELETE FROM invoices WHERE id = ? AND group_id = ?')->execute([$id, group_id()]);
+            // Recule le compteur pour réutiliser ce numéro.
+            $issuer = billing_load();
+            if ((int) ($issuer['next_year'] ?? 0) === (int) $row['year']) {
+                $issuer['next_seq'] = (int) $row['seq'];
+                $pdo->prepare('UPDATE app_group SET invoice_settings = ? WHERE id = ?')
+                    ->execute([json_encode($issuer, JSON_UNESCAPED_UNICODE), group_id()]);
+            }
+        } else {
+            $pdo->prepare('DELETE FROM invoices WHERE id = ? AND group_id = ?')->execute([$id, group_id()]);
         }
         $pdo->commit();
     } catch (Throwable $e) {
@@ -2122,6 +2190,7 @@ $routes = [
     ['GET',    '#^/invoices/share/([^/]+)/pdf$#', 'invoice_share_pdf'],
     ['GET',    '#^/invoices$#',                 'invoices_list'],
     ['POST',   '#^/invoices$#',                 'invoice_create'],
+    ['POST',   '#^/invoices/import$#',          'invoice_import'],
     ['GET',    '#^/invoices/([^/]+)/pdf$#',     'invoice_pdf'],
     ['POST',   '#^/invoices/([^/]+)/share$#',   'invoice_share_set'],
     ['POST',   '#^/invoices/([^/]+)/send$#',    'invoice_send'],
