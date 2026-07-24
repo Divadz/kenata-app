@@ -10,6 +10,8 @@ import { DurationSelect } from '../../components/DurationSelect';
 import { AddressAutocomplete } from '../../components/AddressAutocomplete';
 import { ContactField } from '../contacts/ContactField';
 import { useContacts } from '../contacts/useContacts';
+import { InvoicePanel } from '../billing/InvoicePanel';
+import { useGroup } from '../group/useGroup';
 import { PayModal, fullDate } from './PayModal';
 import { useAuth } from '../../auth/AuthProvider';
 import { useSetlists } from '../setlists/useSetlists';
@@ -38,7 +40,8 @@ const ROLES: { id: Role; label: string }[] = [
 export function ConcertEditor() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
-  const { sectionOrder } = useAuth();
+  const { sectionOrder, member } = useAuth();
+  const { meta } = useGroup();
   const { setlists } = useSetlists();
   const { items: gearItems } = useGearItems();
   const { concerts } = useConcerts();
@@ -255,6 +258,7 @@ export function ConcertEditor() {
         <span className="muted">Cachet :</span>{' '}
         {c.fee ? <strong>{c.fee}</strong> : <span className="muted">—</span>}
         {c.fee_guso && <span className="badge">GUSO</span>}
+        {c.invoice_sent && <span className="badge sent">✉ facture envoyée</span>}
       </p>
       <div className="row" style={{ gap: '0.4rem' }}>
         <span className="muted small">Matos :</span>
@@ -604,6 +608,14 @@ export function ConcertEditor() {
 
       {essentiel}
       {sectionOrder.map((k) => sections[k])}
+
+      {member?.role === 'owner' && (
+        <InvoicePanel
+          concert={c}
+          groupName={meta?.name || 'Kenata'}
+          onSent={() => void getConcert(id).then(setC)}
+        />
+      )}
 
       {payOpen && (
         <PayModal

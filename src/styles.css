@@ -475,6 +475,9 @@ code { font-family: var(--mono); font-size: 0.85em; color: var(--cyan); }
 .onboard-check { color: var(--cyan); }
 
 /* ---- Cartes concert (Lot 3) ---- */
+/* Ligne de facture (panneau Facturation) : infos + actions, puis partage. */
+.invoice-row { display: flex; flex-direction: column; align-items: stretch; gap: 0.4rem; }
+
 /* Diagnostic écran (Réglages / Maintenance). */
 .screen-info { margin-top: 0.9rem; border-top: 1px solid var(--line-soft); padding-top: 0.6rem; }
 .screen-info .list li { display: flex; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
@@ -567,6 +570,8 @@ code { font-family: var(--mono); font-size: 0.85em; color: var(--cyan); }
 .badge.priv { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); }
 .badge.pub { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
 .badge.paid { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); background: color-mix(in srgb, var(--ok) 12%, transparent); }
+.badge.sent { color: var(--cyan); border-color: color-mix(in srgb, var(--cyan) 45%, var(--line)); background: color-mix(in srgb, var(--cyan) 12%, transparent); }
+.ok-text { color: var(--ok); }
 /* Case « Voir tout » à côté du titre des concerts passés. */
 .show-all { font-size: 0.82rem; color: var(--muted); white-space: nowrap; }
 /* Badge « option » : pastille ambre pleine (statut, pas une catégorie). */

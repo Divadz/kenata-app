@@ -142,6 +142,8 @@ export interface ConcertSummary {
   paid?: boolean;
   /** Date du paiement (YYYY-MM-DD), renseignée au marquage « payé ». */
   paid_date?: string | null;
+  /** Une facture a été envoyée par mail pour ce concert. */
+  invoice_sent?: boolean;
   fee?: string | null;
   fee_guso?: boolean;
   target_duration_min: number | null;
@@ -176,6 +178,52 @@ export interface ConcertDetail extends ConcertSummary {
   roadmap: RoadmapItem[] | null;
   /** Ids des éléments matos cochés pour ce concert (figés à la création depuis les défauts). */
   gear_checklist: string[] | null;
+}
+
+// --- Facturation (association) ---
+
+export interface BillingSettings {
+  name?: string;
+  address_footer?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  siret?: string;
+  naf?: string;
+  legal_form?: string;
+  tva_mention?: string;
+  payment_terms?: string;
+  email_signature?: string;
+  bank_name?: string;
+  account_holder?: string;
+  iban?: string;
+  bic?: string;
+  prefix?: string;
+  /** Compteur : la prochaine facture sera next_year-next_seq (éditable). */
+  next_year?: number;
+  next_seq?: number;
+}
+
+export interface Invoice {
+  id: string;
+  number: string;
+  year: number;
+  seq: number;
+  concert_id: string | null;
+  issue_date: string;
+  due_date: string | null;
+  service_date: string | null;
+  client_block: string | null;
+  object_label: string | null;
+  designation: string | null;
+  qty: number;
+  unit_price: number;
+  amount: number;
+  currency: string;
+  notes: string | null;
+  /** Jeton de lien public (null si révoqué). */
+  share_token: string | null;
+  created_at: string;
 }
 
 // --- Lot 4 : Booking / CRM de démarchage ---

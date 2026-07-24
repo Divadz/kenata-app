@@ -85,6 +85,7 @@ function ConcertCard({ c, onMarkPaid }: { c: ConcertSummary; onMarkPaid?: () => 
             {c.paid && (
               <span className="badge paid">{c.paid_date ? `payé ${shortDate(c.paid_date)}` : 'payé'}</span>
             )}
+            {c.invoice_sent && <span className="badge sent">✉ facturé</span>}
           </div>
         </div>
       </div>

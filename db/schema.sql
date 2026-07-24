@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS app_group (
   color_primary  VARCHAR(16)  NULL,
   onboarding_pct INT          NOT NULL DEFAULT 0,
   concert_section_order JSON   NULL,
+  invoice_settings JSON        NULL,
   created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -174,6 +175,7 @@ CREATE TABLE IF NOT EXISTS concerts (
   merch               TINYINT(1)   NOT NULL DEFAULT 0,
   paid                TINYINT(1)   NOT NULL DEFAULT 0,
   paid_date           DATE         NULL,
+  invoice_sent_at     DATETIME     NULL,
   notes               TEXT         NULL,
   contacts            JSON         NULL,
   ticket_links        JSON         NULL,
@@ -233,6 +235,39 @@ CREATE TABLE IF NOT EXISTS contacts (
   PRIMARY KEY (id),
   KEY idx_group_name (group_id, name),
   CONSTRAINT fk_contact_group FOREIGN KEY (group_id) REFERENCES app_group(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Factures générées à partir des concerts (émetteur = association).
+-- Numéro séquentiel par (groupe, année) ; snapshot émetteur/client pour immuabilité.
+CREATE TABLE IF NOT EXISTS invoices (
+  id            CHAR(36)      NOT NULL,
+  group_id      VARCHAR(64)   NOT NULL,
+  number        VARCHAR(32)   NOT NULL,
+  year          INT           NOT NULL,
+  seq           INT           NOT NULL,
+  concert_id    CHAR(36)      NULL,
+  issue_date    DATE          NOT NULL,
+  due_date      DATE          NULL,
+  service_date  DATE          NULL,
+  client_block  TEXT          NULL,
+  object_label  VARCHAR(255)  NULL,
+  designation   VARCHAR(512)  NULL,
+  qty           DECIMAL(10,2) NOT NULL DEFAULT 1,
+  unit_price    DECIMAL(10,2) NOT NULL DEFAULT 0,
+  amount        DECIMAL(10,2) NOT NULL DEFAULT 0,
+  currency      VARCHAR(8)    NOT NULL DEFAULT 'EUR',
+  notes         TEXT          NULL,
+  issuer_snapshot JSON        NULL,
+  pdf_data      LONGBLOB      NULL,
+  share_token   CHAR(32)      NULL,
+  created_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_share_token (share_token),
+  UNIQUE KEY uq_group_number (group_id, number),
+  UNIQUE KEY uq_group_year_seq (group_id, year, seq),
+  KEY idx_concert (concert_id),
+  CONSTRAINT fk_invoice_group   FOREIGN KEY (group_id)   REFERENCES app_group(id) ON DELETE CASCADE,
+  CONSTRAINT fk_invoice_concert FOREIGN KEY (concert_id) REFERENCES concerts(id)  ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Abonnements aux notifications push (Lot 6). Un membre peut avoir plusieurs

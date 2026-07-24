@@ -8,8 +8,11 @@ declare(strict_types=1);
  */
 final class Mailer
 {
-    /** @return array{0:bool,1:?string} [succès, message d'erreur éventuel] */
-    public static function send(string $to, string $subject, string $html, ?string $text = null): array
+    /**
+     * @param array<int,array{name:string,type:string,data:string}> $attachments
+     * @return array{0:bool,1:?string} [succès, message d'erreur éventuel]
+     */
+    public static function send(string $to, string $subject, string $html, ?string $text = null, array $attachments = []): array
     {
         $host     = (string) config('smtp.host', 'smtp.gmail.com');
         $port     = (int) config('smtp.port', 587);
@@ -77,8 +80,36 @@ final class Mailer
             $cmd('RCPT TO:<' . $to . '>', '250');
             $cmd('DATA', '354');
 
-            $boundary = 'kb_' . bin2hex(random_bytes(10));
             $enc = static fn (string $s): string => '=?UTF-8?B?' . base64_encode($s) . '?=';
+            // Corps texte + HTML (multipart/alternative).
+            $altBoundary = 'alt_' . bin2hex(random_bytes(8));
+            $part = static fn (string $type, string $content): string =>
+                "--$altBoundary\r\nContent-Type: $type; charset=UTF-8\r\n"
+                . "Content-Transfer-Encoding: base64\r\n\r\n"
+                . chunk_split(base64_encode($content)) . "\r\n";
+            $alt = $part('text/plain', $text) . $part('text/html', $html) . "--$altBoundary--\r\n";
+
+            if ($attachments) {
+                // multipart/mixed = corps alternatif + pièces jointes.
+                $mixBoundary = 'mix_' . bin2hex(random_bytes(8));
+                $contentType = 'multipart/mixed; boundary="' . $mixBoundary . '"';
+                $body = "--$mixBoundary\r\n"
+                    . 'Content-Type: multipart/alternative; boundary="' . $altBoundary . "\"\r\n\r\n"
+                    . $alt;
+                foreach ($attachments as $a) {
+                    $name = str_replace('"', '', (string) $a['name']);
+                    $body .= "--$mixBoundary\r\n"
+                        . 'Content-Type: ' . $a['type'] . '; name="' . $name . "\"\r\n"
+                        . "Content-Transfer-Encoding: base64\r\n"
+                        . 'Content-Disposition: attachment; filename="' . $name . "\"\r\n\r\n"
+                        . chunk_split(base64_encode((string) $a['data'])) . "\r\n";
+                }
+                $body .= "--$mixBoundary--\r\n";
+            } else {
+                $contentType = 'multipart/alternative; boundary="' . $altBoundary . '"';
+                $body = $alt;
+            }
+
             $headers = implode("\r\n", [
                 'Date: ' . date('r'),
                 'From: ' . $enc($fromName) . ' <' . $from . '>',
@@ -86,16 +117,9 @@ final class Mailer
                 'Reply-To: <' . $replyTo . '>',
                 'Subject: ' . $enc($subject),
                 'MIME-Version: 1.0',
-                'Content-Type: multipart/alternative; boundary="' . $boundary . '"',
+                'Content-Type: ' . $contentType,
             ]);
-            $part = static fn (string $type, string $content): string =>
-                "--$boundary\r\nContent-Type: $type; charset=UTF-8\r\n"
-                . "Content-Transfer-Encoding: base64\r\n\r\n"
-                . chunk_split(base64_encode($content)) . "\r\n";
-            $message = $headers . "\r\n\r\n"
-                . $part('text/plain', $text)
-                . $part('text/html', $html)
-                . "--$boundary--\r\n";
+            $message = $headers . "\r\n\r\n" . $body;
             // Dot-stuffing (défensif ; les corps base64 n'en contiennent pas).
             $message = preg_replace('/^\./m', '..', $message);
 

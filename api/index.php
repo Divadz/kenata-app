@@ -954,6 +954,7 @@ function present_concert(array $row): array
     $row['merch'] = (bool) $row['merch'];
     $row['is_option'] = (bool) $row['is_option'];
     $row['paid'] = (bool) $row['paid'];
+    $row['invoice_sent'] = !empty($row['invoice_sent_at']);
     $row['target_duration_min'] = $row['target_duration_min'] !== null ? (int) $row['target_duration_min'] : null;
     return $row;
 }
@@ -1197,7 +1198,7 @@ function concerts_list(): never
     Auth::requireMember();
     $stmt = db()->prepare(
         "SELECT c.id, c.date, c.start_time, c.arrival_time, c.venue_name, c.visibility, c.is_option, c.merch,
-            c.paid, c.paid_date, c.fee, c.fee_guso, c.target_duration_min, c.setlist_id, c.address, c.contacts, c.notes,
+            c.paid, c.paid_date, c.invoice_sent_at, c.fee, c.fee_guso, c.target_duration_min, c.setlist_id, c.address, c.contacts, c.notes,
             s.name AS setlist_name,
             (SELECT COALESCE(SUM(CASE WHEN i.type = 'song' THEN so.duration_sec ELSE i.est_duration_sec END), 0)
                FROM setlist_items i LEFT JOIN songs so ON so.id = i.song_id
@@ -1211,6 +1212,8 @@ function concerts_list(): never
         $r['fee_guso'] = (bool) $r['fee_guso'];
         $r['is_option'] = (bool) $r['is_option'];
         $r['paid'] = (bool) $r['paid'];
+        $r['invoice_sent'] = !empty($r['invoice_sent_at']);
+        unset($r['invoice_sent_at']);
         $r['contacts'] = $r['contacts'] ? json_decode($r['contacts'], true) : null;
         return $r;
     }, $stmt->fetchAll());
@@ -1651,6 +1654,339 @@ function booking_confirm(string $id): never
 }
 
 // ---------------------------------------------------------------------------
+// Facturation (association) — paramètres émetteur + génération de factures PDF
+// ---------------------------------------------------------------------------
+
+const BILLING_FIELDS = [
+    'name', 'legal_form', 'address_footer', 'siret', 'naf', 'email', 'phone', 'website',
+    'tva_mention', 'bank_name', 'account_holder', 'iban', 'bic', 'payment_terms', 'email_signature', 'prefix',
+];
+
+function billing_load(): array
+{
+    $st = db()->prepare('SELECT invoice_settings FROM app_group WHERE id = ?');
+    $st->execute([group_id()]);
+    $row = $st->fetch();
+    $s = $row && $row['invoice_settings'] ? json_decode($row['invoice_settings'], true) : [];
+    return is_array($s) ? $s : [];
+}
+
+function billing_get(): never
+{
+    Auth::requireOwner();
+    json_response(billing_load() ?: (object) []);
+}
+
+function billing_update(): never
+{
+    Auth::requireOwner();
+    Auth::enforceCsrf();
+    $b = read_json();
+    $out = billing_load();
+    foreach (BILLING_FIELDS as $k) {
+        if (array_key_exists($k, $b)) {
+            $out[$k] = is_string($b[$k]) ? trim($b[$k]) : $b[$k];
+        }
+    }
+    // Compteur de numérotation (entiers) : « la prochaine facture sera next_year-next_seq ».
+    foreach (['next_year', 'next_seq'] as $k) {
+        if (array_key_exists($k, $b)) {
+            $out[$k] = max(0, (int) $b[$k]);
+        }
+    }
+    db()->prepare('UPDATE app_group SET invoice_settings = ? WHERE id = ?')
+        ->execute([json_encode($out, JSON_UNESCAPED_UNICODE), group_id()]);
+    json_response(['ok' => true]);
+}
+
+function present_invoice(array $r): array
+{
+    return [
+        'id' => $r['id'],
+        'number' => $r['number'],
+        'year' => (int) $r['year'],
+        'seq' => (int) $r['seq'],
+        'concert_id' => $r['concert_id'],
+        'issue_date' => $r['issue_date'],
+        'due_date' => $r['due_date'],
+        'service_date' => $r['service_date'],
+        'client_block' => $r['client_block'],
+        'object_label' => $r['object_label'],
+        'designation' => $r['designation'],
+        'qty' => (float) $r['qty'],
+        'unit_price' => (float) $r['unit_price'],
+        'amount' => (float) $r['amount'],
+        'currency' => $r['currency'],
+        'notes' => $r['notes'],
+        'share_token' => $r['share_token'],
+        'created_at' => $r['created_at'],
+    ];
+}
+
+const INVOICE_COLS = 'id, number, year, seq, concert_id, issue_date, due_date, service_date, client_block, object_label, designation, qty, unit_price, amount, currency, notes, share_token, created_at';
+
+function invoices_list(): never
+{
+    Auth::requireOwner();
+    $concertId = trim((string) ($_GET['concert_id'] ?? ''));
+    if ($concertId !== '') {
+        $st = db()->prepare('SELECT ' . INVOICE_COLS . ' FROM invoices WHERE group_id = ? AND concert_id = ? ORDER BY year DESC, seq DESC');
+        $st->execute([group_id(), $concertId]);
+    } else {
+        $st = db()->prepare('SELECT ' . INVOICE_COLS . ' FROM invoices WHERE group_id = ? ORDER BY year DESC, seq DESC');
+        $st->execute([group_id()]);
+    }
+    json_response(array_map('present_invoice', $st->fetchAll()));
+}
+
+function invoice_create(): never
+{
+    Auth::requireOwner();
+    Auth::enforceCsrf();
+    require_once __DIR__ . '/lib/Invoice.php';
+    $b = read_json();
+
+    $issuer = billing_load();
+    if (empty($issuer['name'])) {
+        json_response(['error' => 'billing_not_configured'], 422);
+    }
+
+    $dateRe = '/^\d{4}-\d{2}-\d{2}$/';
+    $sd = trim((string) ($b['service_date'] ?? ''));
+    $service = preg_match($dateRe, $sd) ? $sd : null;
+    // Date de facture = date fournie (par convention, la date du concert), sinon aujourd'hui.
+    $idt = trim((string) ($b['issue_date'] ?? ''));
+    $issueDate = preg_match($dateRe, $idt) ? $idt : ($service ?? date('Y-m-d'));
+    // L'année de numérotation suit la date de facture.
+    $year = (int) substr($issueDate, 0, 4);
+    $dd = trim((string) ($b['due_date'] ?? ''));
+    $dueDate = preg_match($dateRe, $dd) ? $dd : $issueDate;
+    $client = trim((string) ($b['client_block'] ?? ''));
+    $object = trim((string) ($b['object_label'] ?? '')) ?: null;
+    $designation = trim((string) ($b['designation'] ?? '')) ?: 'Prestation';
+    $qty = round((float) ($b['qty'] ?? 1), 2);
+    $unit = round((float) ($b['unit_price'] ?? 0), 2);
+    // Le montant est calculé à partir de qté × prix unitaire.
+    $amount = round($qty * $unit, 2);
+    $notes = trim((string) ($b['notes'] ?? '')) ?: null;
+
+    $concertId = null;
+    if (!empty($b['concert_id'])) {
+        $chk = db()->prepare('SELECT id, fee_guso FROM concerts WHERE id = ? AND group_id = ?');
+        $chk->execute([$b['concert_id'], group_id()]);
+        $crow = $chk->fetch();
+        if ($crow) {
+            // Pas de facture pour un concert réglé au GUSO.
+            if ((int) $crow['fee_guso'] === 1) {
+                json_response(['error' => 'guso_no_invoice'], 422);
+            }
+            $concertId = (string) $b['concert_id'];
+        }
+    }
+
+    // Le bloc client (Adresse contrat) est obligatoire.
+    if ($client === '') {
+        json_response(['error' => 'client_required'], 422);
+    }
+
+    // Plancher issu du compteur configuré (utile pour initialiser la prod).
+    $storedYear = (int) ($issuer['next_year'] ?? 0);
+    $storedNext = (int) ($issuer['next_seq'] ?? 0);
+    $floor = ($storedYear === $year && $storedNext > 0) ? $storedNext : 1;
+
+    $pdo = db();
+    $pdo->beginTransaction();
+    try {
+        $q = $pdo->prepare('SELECT COALESCE(MAX(seq), 0) AS mx FROM invoices WHERE group_id = ? AND year = ? FOR UPDATE');
+        $q->execute([group_id(), $year]);
+        $seq = max($floor, (int) $q->fetch()['mx'] + 1);
+        $prefix = trim((string) ($issuer['prefix'] ?? ''));
+        $number = $prefix . $year . '-' . str_pad((string) $seq, 3, '0', STR_PAD_LEFT);
+
+        $inv = [
+            'number' => $number, 'issue_date' => $issueDate, 'due_date' => $dueDate,
+            'service_date' => $service, 'client_block' => $client, 'object_label' => $object,
+            'designation' => $designation, 'qty' => $qty, 'unit_price' => $unit,
+            'amount' => $amount, 'currency' => 'EUR', 'notes' => $notes,
+        ];
+        $pdf = invoice_pdf_bytes($inv, $issuer);
+
+        $id = uuidv4();
+        // Jeton de partage créé par défaut (lien public révocable).
+        $shareToken = bin2hex(random_bytes(16));
+        $ins = $pdo->prepare(
+            'INSERT INTO invoices (id, group_id, number, year, seq, concert_id, issue_date, due_date, service_date, client_block, object_label, designation, qty, unit_price, amount, currency, notes, issuer_snapshot, pdf_data, share_token)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        );
+        $ins->execute([
+            $id, group_id(), $number, $year, $seq, $concertId, $issueDate, $dueDate, $service,
+            $client, $object, $designation, $qty, $unit, $amount, 'EUR', $notes,
+            json_encode($issuer, JSON_UNESCAPED_UNICODE), $pdf, $shareToken,
+        ]);
+
+        // Avance le compteur stocké : la prochaine facture sera year-(seq+1).
+        $issuer['next_year'] = $year;
+        $issuer['next_seq'] = $seq + 1;
+        $pdo->prepare('UPDATE app_group SET invoice_settings = ? WHERE id = ?')
+            ->execute([json_encode($issuer, JSON_UNESCAPED_UNICODE), group_id()]);
+
+        $pdo->commit();
+    } catch (Throwable $e) {
+        $pdo->rollBack();
+        throw $e;
+    }
+
+    json_response(['id' => $id, 'number' => $number], 201);
+}
+
+function invoice_pdf(string $id): never
+{
+    Auth::requireOwner();
+    $st = db()->prepare('SELECT number, pdf_data FROM invoices WHERE id = ? AND group_id = ?');
+    $st->execute([$id, group_id()]);
+    $row = $st->fetch();
+    if (!$row || $row['pdf_data'] === null) {
+        json_response(['error' => 'not_found'], 404);
+    }
+    header('Content-Type: application/pdf');
+    header('Content-Disposition: inline; filename="facture-' . $row['number'] . '.pdf"');
+    header('Content-Length: ' . strlen($row['pdf_data']));
+    echo $row['pdf_data'];
+    exit;
+}
+
+/** PDF accessible publiquement via un jeton de partage non devinable (pas d'auth). */
+function invoice_share_pdf(string $token): never
+{
+    if (!preg_match('/^[a-f0-9]{32}$/', $token)) {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'Facture introuvable.';
+        exit;
+    }
+    $st = db()->prepare('SELECT number, pdf_data FROM invoices WHERE share_token = ?');
+    $st->execute([$token]);
+    $row = $st->fetch();
+    if (!$row || $row['pdf_data'] === null) {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'Facture introuvable ou lien révoqué.';
+        exit;
+    }
+    header('Content-Type: application/pdf');
+    header('Content-Disposition: inline; filename="facture-' . $row['number'] . '.pdf"');
+    header('Content-Length: ' . strlen($row['pdf_data']));
+    echo $row['pdf_data'];
+    exit;
+}
+
+/** Régénère (défaut) ou révoque le jeton de partage d'une facture — owner. */
+function invoice_share_set(string $id): never
+{
+    Auth::requireOwner();
+    Auth::enforceCsrf();
+    $chk = db()->prepare('SELECT id FROM invoices WHERE id = ? AND group_id = ?');
+    $chk->execute([$id, group_id()]);
+    if (!$chk->fetch()) {
+        json_response(['error' => 'not_found'], 404);
+    }
+    $b = read_json();
+    if (($b['action'] ?? '') === 'revoke') {
+        db()->prepare('UPDATE invoices SET share_token = NULL WHERE id = ? AND group_id = ?')->execute([$id, group_id()]);
+        json_response(['share_token' => null]);
+    }
+    $t = bin2hex(random_bytes(16));
+    db()->prepare('UPDATE invoices SET share_token = ? WHERE id = ? AND group_id = ?')->execute([$t, $id, group_id()]);
+    json_response(['share_token' => $t]);
+}
+
+/** Envoie la facture par mail (PDF en pièce jointe) et flague le concert. */
+function invoice_send(string $id): never
+{
+    Auth::requireOwner();
+    Auth::enforceCsrf();
+    require_once __DIR__ . '/lib/Mailer.php';
+    $b = read_json();
+
+    $to = trim((string) ($b['to'] ?? ''));
+    $subject = trim((string) ($b['subject'] ?? ''));
+    $bodyText = (string) ($b['body'] ?? '');
+    if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
+        json_response(['error' => 'invalid_recipient'], 422);
+    }
+    if ($subject === '' || trim($bodyText) === '') {
+        json_response(['error' => 'empty_message'], 422);
+    }
+
+    $st = db()->prepare('SELECT number, concert_id, pdf_data FROM invoices WHERE id = ? AND group_id = ?');
+    $st->execute([$id, group_id()]);
+    $inv = $st->fetch();
+    if (!$inv || $inv['pdf_data'] === null) {
+        json_response(['error' => 'not_found'], 404);
+    }
+
+    // Corps HTML depuis le texte (liens cliquables + sauts de ligne).
+    $html = preg_replace(
+        '#(https?://[^\s<]+)#',
+        '<a href="$1">$1</a>',
+        nl2br(htmlspecialchars($bodyText, ENT_QUOTES, 'UTF-8'))
+    );
+
+    [$ok, $err] = Mailer::send($to, $subject, $html, $bodyText, [[
+        'name' => 'Facture_' . $inv['number'] . '.pdf',
+        'type' => 'application/pdf',
+        'data' => $inv['pdf_data'],
+    ]]);
+    if (!$ok) {
+        json_response(['error' => 'send_failed', 'detail' => $err], 502);
+    }
+
+    // Flag « facture envoyée » sur le concert lié.
+    if (!empty($inv['concert_id'])) {
+        db()->prepare('UPDATE concerts SET invoice_sent_at = NOW() WHERE id = ? AND group_id = ?')
+            ->execute([$inv['concert_id'], group_id()]);
+    }
+    json_response(['ok' => true]);
+}
+
+function invoice_delete(string $id): never
+{
+    Auth::requireOwner();
+    Auth::enforceCsrf();
+    $pdo = db();
+    $pdo->beginTransaction();
+    try {
+        $st = $pdo->prepare('SELECT year, seq FROM invoices WHERE id = ? AND group_id = ? FOR UPDATE');
+        $st->execute([$id, group_id()]);
+        $row = $st->fetch();
+        if (!$row) {
+            $pdo->rollBack();
+            json_response(['error' => 'not_found'], 404);
+        }
+        // Seule la dernière facture émise de l'année peut être supprimée (continuité).
+        $mx = $pdo->prepare('SELECT COALESCE(MAX(seq), 0) AS mx FROM invoices WHERE group_id = ? AND year = ?');
+        $mx->execute([group_id(), (int) $row['year']]);
+        if ((int) $row['seq'] !== (int) $mx->fetch()['mx']) {
+            $pdo->rollBack();
+            json_response(['error' => 'not_last_invoice'], 409);
+        }
+        $pdo->prepare('DELETE FROM invoices WHERE id = ? AND group_id = ?')->execute([$id, group_id()]);
+        // Recule le compteur pour réutiliser ce numéro.
+        $issuer = billing_load();
+        if ((int) ($issuer['next_year'] ?? 0) === (int) $row['year']) {
+            $issuer['next_seq'] = (int) $row['seq'];
+            $pdo->prepare('UPDATE app_group SET invoice_settings = ? WHERE id = ?')
+                ->execute([json_encode($issuer, JSON_UNESCAPED_UNICODE), group_id()]);
+        }
+        $pdo->commit();
+    } catch (Throwable $e) {
+        $pdo->rollBack();
+        throw $e;
+    }
+    json_response(['ok' => true]);
+}
+
+// ---------------------------------------------------------------------------
 // Notifications push (Lot 6)
 // ---------------------------------------------------------------------------
 
@@ -1780,6 +2116,16 @@ $routes = [
     ['DELETE', '#^/setlists/([^/]+)/share$#',   'setlist_share_delete'],
 
     ['GET',    '#^/share/([^/]+)$#',            'share_get'],
+
+    ['GET',    '#^/billing$#',                  'billing_get'],
+    ['PATCH',  '#^/billing$#',                  'billing_update'],
+    ['GET',    '#^/invoices/share/([^/]+)/pdf$#', 'invoice_share_pdf'],
+    ['GET',    '#^/invoices$#',                 'invoices_list'],
+    ['POST',   '#^/invoices$#',                 'invoice_create'],
+    ['GET',    '#^/invoices/([^/]+)/pdf$#',     'invoice_pdf'],
+    ['POST',   '#^/invoices/([^/]+)/share$#',   'invoice_share_set'],
+    ['POST',   '#^/invoices/([^/]+)/send$#',    'invoice_send'],
+    ['DELETE', '#^/invoices/([^/]+)$#',         'invoice_delete'],
 
     ['GET',    '#^/contacts$#',                 'contacts_list'],
     ['POST',   '#^/contacts$#',                 'contact_create'],

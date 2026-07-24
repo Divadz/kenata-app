@@ -2,6 +2,8 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { api } from '../../api/client';
 import { useAuth } from '../../auth/AuthProvider';
 import { MembersManager } from '../members/MembersManager';
+import { useBilling, updateBilling } from '../billing/useBilling';
+import type { BillingSettings } from '../../types/models';
 import { currentSubscription, disablePush, enablePush, isIOS, isStandalone, pushSupported } from '../../push';
 import { reconcileOrder, SECTION_LABELS, type SectionKey } from '../concerts/sections';
 import {
@@ -54,6 +56,11 @@ export function GroupSettings() {
         <NotificationsSettings />
       </Section>
       {isOwner && (
+        <Section title="Facturation" ownerOnly>
+          <BillingForm />
+        </Section>
+      )}
+      {isOwner && (
         <Section title="Test des notifications" ownerOnly>
           <NotifTest />
         </Section>
@@ -88,6 +95,143 @@ function AccountSection() {
       <button className="btn" onClick={() => logout()}>
         Déconnexion
       </button>
+    </>
+  );
+}
+
+/** Paramètres émetteur des factures (association). */
+function BillingForm() {
+  const { settings, loading, reload } = useBilling();
+  const [f, setF] = useState<BillingSettings>({});
+  const [saved, setSaved] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (settings) setF(settings);
+  }, [settings]);
+
+  if (loading) return <p className="muted small">Chargement…</p>;
+
+  const set = (k: keyof BillingSettings, v: string) => setF((p) => ({ ...p, [k]: v }));
+  const setNum = (k: 'next_year' | 'next_seq', v: string) =>
+    setF((p) => ({ ...p, [k]: v === '' ? undefined : Math.max(0, parseInt(v, 10) || 0) }));
+  const field = (k: keyof BillingSettings, label: string, ph = '') => (
+    <label className="field">
+      <span>{label}</span>
+      <input value={(f[k] as string | undefined) ?? ''} onChange={(e) => set(k, e.target.value)} placeholder={ph} />
+    </label>
+  );
+
+  const cyear = f.next_year || new Date().getFullYear();
+  const cseq = f.next_seq && f.next_seq > 0 ? f.next_seq : 1;
+  const nextNumber = `${f.prefix ?? ''}${cyear}-${String(cseq).padStart(3, '0')}`;
+
+  async function save() {
+    setBusy(true);
+    setSaved(null);
+    try {
+      await updateBilling(f);
+      setSaved('Enregistré ✓');
+      await reload();
+    } catch {
+      setSaved('Erreur d’enregistrement');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <p className="muted small">
+        Émetteur des factures. Ces informations figurent sur chaque facture générée depuis un concert.
+      </p>
+      <div className="grid2">
+        {field('name', 'Dénomination', 'ASSOCIATION …')}
+        {field('legal_form', 'Forme juridique', 'ASSOCIATION')}
+      </div>
+      <label className="field">
+        <span>Adresse (ligne de pied de page)</span>
+        <input
+          value={f.address_footer ?? ''}
+          onChange={(e) => set('address_footer', e.target.value)}
+          placeholder="24 Résidence … | 56270 PLOEMEUR | France"
+        />
+      </label>
+      <div className="grid2">
+        {field('siret', 'SIRET')}
+        {field('naf', 'Code NAF', '94.99Z')}
+      </div>
+      <div className="grid2">
+        {field('email', 'Email', 'contact@…')}
+        {field('phone', 'Téléphone')}
+      </div>
+      {field('website', 'Site web', 'kenata.fr')}
+      <label className="field">
+        <span>Mention TVA</span>
+        <input
+          value={f.tva_mention ?? ''}
+          onChange={(e) => set('tva_mention', e.target.value)}
+          placeholder="TVA non applicable, art. 261-7-1° du CGI"
+        />
+      </label>
+      <label className="field full">
+        <span>Mentions de paiement (pénalités / indemnité)</span>
+        <textarea
+          rows={3}
+          value={f.payment_terms ?? ''}
+          onChange={(e) => set('payment_terms', e.target.value)}
+          placeholder={
+            'En cas de retard : indemnité forfaitaire de 40 € pour frais de recouvrement (art. L441-10 et D441-5 du Code de commerce).\nPas d’escompte pour paiement anticipé.'
+          }
+        />
+      </label>
+
+      <h4>Coordonnées bancaires</h4>
+      <div className="grid2">
+        {field('bank_name', 'Nom de la banque')}
+        {field('account_holder', 'Titulaire du compte')}
+      </div>
+      {field('iban', 'IBAN')}
+      {field('bic', 'BIC / SWIFT')}
+
+      <h4>Envoi par email</h4>
+      <label className="field full">
+        <span>Signature (bas des emails d'envoi de facture)</span>
+        <textarea
+          rows={3}
+          value={f.email_signature ?? ''}
+          onChange={(e) => set('email_signature', e.target.value)}
+          placeholder={'Florian Le Tiec\nPrésident\nAssociation FCK'}
+        />
+      </label>
+
+      <h4>Numérotation</h4>
+      {field('prefix', 'Préfixe (optionnel)', 'ex. KEN-  → KEN-2026-001')}
+      <div className="grid2">
+        <label className="field">
+          <span>Année du compteur</span>
+          <input
+            inputMode="numeric"
+            value={f.next_year ?? new Date().getFullYear()}
+            onChange={(e) => setNum('next_year', e.target.value)}
+          />
+        </label>
+        <label className="field">
+          <span>Prochain n° (séquence)</span>
+          <input inputMode="numeric" value={f.next_seq ?? 1} onChange={(e) => setNum('next_seq', e.target.value)} />
+        </label>
+      </div>
+      <p className="muted small">
+        Prochaine facture : <strong>{nextNumber}</strong>. Le compteur s'incrémente à chaque génération et
+        repart à 1 chaque année. <em>Déjà à 2026-025 ? Mets 2026 et 26.</em>
+      </p>
+
+      <div className="row" style={{ marginTop: '0.6rem' }}>
+        <button className="btn primary" onClick={save} disabled={busy}>
+          {busy ? 'Enregistrement…' : 'Enregistrer'}
+        </button>
+        {saved && <span className="muted small">{saved}</span>}
+      </div>
     </>
   );
 }
