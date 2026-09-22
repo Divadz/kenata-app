@@ -862,3 +862,46 @@ code { font-family: var(--mono); font-size: 0.85em; color: var(--cyan); }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+/* ---- Propositions de morceaux ---- */
+.prop-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; }
+@media (max-width: 720px) { .prop-list { grid-template-columns: 1fr; } }
+.prop-card { padding: 0.75rem 0.85rem; display: flex; flex-direction: column; gap: 0.6rem; cursor: pointer; min-width: 0; }
+.prop-card:hover { border-color: var(--amber); }
+.prop-card-head { display: flex; align-items: flex-start; gap: 0.6rem; min-width: 0; }
+.prop-card-txt { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.prop-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; cursor: default; }
+.listen-btn { flex: none; text-decoration: none; white-space: nowrap; align-self: flex-start; }
+
+.vote-bar { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.vote-btn {
+  min-height: 2.4rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.vote-btn:disabled { opacity: 0.6; cursor: wait; }
+.vote-btn.v-pour.active { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 18%, transparent); }
+.vote-btn.v-bof.active { border-color: var(--amber); background: color-mix(in srgb, var(--amber) 18%, transparent); }
+.vote-btn.v-contre.active { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 18%, transparent); }
+.vote-count { padding: 0.25rem 0.4rem; color: var(--muted); }
+
+.prop-modal-title { margin: 0; }
+.prop-head { display: flex; gap: 0.8rem; align-items: flex-start; }
+.prop-cover-lg { width: 88px; height: 88px; border-radius: var(--radius-sm); object-fit: cover; flex: none; }
+.prop-head-txt { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; overflow-wrap: anywhere; }
+.prop-title-lg { font-size: 1.15rem; }
+.prop-pitch { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; border-left: 2px solid var(--amber); padding-left: 0.7rem; }
+.prop-state { margin: 0; font-size: 0.9rem; color: var(--muted); }
+.prop-state.ok { color: var(--ok); }
+.prop-actions { flex-wrap: wrap; gap: 0.5rem; }
+
+.comment-list { list-style: none; margin: 0 0 0.4rem; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.comment-list li { background: var(--panel-2); border-radius: var(--radius-sm); padding: 0.45rem 0.6rem; }
+.comment-meta { display: flex; align-items: baseline; gap: 0.5rem; }
+.comment-meta .chip-x { margin-left: auto; }
+.comment-body { margin: 0.15rem 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }

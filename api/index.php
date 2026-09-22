@@ -1654,6 +1654,302 @@ function booking_confirm(string $id): never
 }
 
 // ---------------------------------------------------------------------------
+// Propositions de morceaux (vote Pour/Bof/Contre, discussion, ajout au répertoire)
+// ---------------------------------------------------------------------------
+
+const PROPOSAL_STATUSES = ['open', 'added', 'dismissed'];
+const PROPOSAL_VOTES = ['pour', 'bof', 'contre'];
+
+/** URL http(s) uniquement (sinon null) : bloque javascript:, data:… dans les href/src. */
+function nullable_http_url(mixed $v, int $max): ?string
+{
+    $s = nullable_str($v, $max);
+    return $s !== null && preg_match('#^https?://[^\s]+$#i', $s) ? $s : null;
+}
+
+function sanitize_proposal(array $b): array
+{
+    $out = [];
+    if (array_key_exists('title', $b)) {
+        $out['title'] = mb_substr(trim((string) $b['title']), 0, 255);
+    }
+    foreach (['artist' => 255, 'album' => 255, 'music_key' => 64] as $k => $max) {
+        if (array_key_exists($k, $b)) {
+            $out[$k] = nullable_str($b[$k], $max);
+        }
+    }
+    foreach (['duration_sec', 'bpm'] as $k) {
+        if (array_key_exists($k, $b)) {
+            $out[$k] = nullable_int($b[$k]);
+        }
+    }
+    foreach (['cover', 'listen_url'] as $k) {
+        if (array_key_exists($k, $b)) {
+            $out[$k] = nullable_http_url($b[$k], 1024);
+        }
+    }
+    if (array_key_exists('pitch', $b)) {
+        $p = mb_substr(trim((string) $b['pitch']), 0, 4000);
+        $out['pitch'] = $p === '' ? null : $p;
+    }
+    return $out;
+}
+
+/** Noms affichables des utilisateurs du groupe (profil, sinon compte Google, sinon email). */
+function member_names(): array
+{
+    $stmt = db()->prepare(
+        'SELECT u.id, COALESCE(m.profile_name, u.name, u.email) AS name
+         FROM users u JOIN memberships m ON m.user_id = u.id AND m.group_id = ?'
+    );
+    $stmt->execute([group_id()]);
+    return array_column($stmt->fetchAll(), 'name', 'id');
+}
+
+function require_proposal(string $id): array
+{
+    $stmt = db()->prepare('SELECT * FROM song_proposals WHERE id = ? AND group_id = ?');
+    $stmt->execute([$id, group_id()]);
+    $row = $stmt->fetch();
+    if (!$row) {
+        json_response(['error' => 'not_found'], 404);
+    }
+    return $row;
+}
+
+/** Auteur de la proposition ou owner/admin. */
+function require_proposal_editor(array $prop, array $member): void
+{
+    if ($prop['proposed_by'] !== $member['user_id'] && !in_array($member['role'], ['owner', 'admin'], true)) {
+        json_response(['error' => 'forbidden'], 403);
+    }
+}
+
+/** Enrichit des lignes de propositions : votes nominatifs, nb de commentaires, noms. */
+function present_proposals(array $rows): array
+{
+    if (!$rows) {
+        return [];
+    }
+    $names = member_names();
+    $ids = array_column($rows, 'id');
+    $in = implode(',', array_fill(0, count($ids), '?'));
+
+    $votes = [];
+    $v = db()->prepare("SELECT proposal_id, user_id, vote FROM song_proposal_votes WHERE proposal_id IN ($in) ORDER BY updated_at");
+    $v->execute($ids);
+    foreach ($v->fetchAll() as $r) {
+        $votes[$r['proposal_id']][] = [
+            'user_id' => $r['user_id'],
+            'name'    => $names[$r['user_id']] ?? 'Ancien membre',
+            'vote'    => $r['vote'],
+        ];
+    }
+    $c = db()->prepare("SELECT proposal_id, COUNT(*) AS n FROM song_proposal_comments WHERE proposal_id IN ($in) GROUP BY proposal_id");
+    $c->execute($ids);
+    $counts = array_column($c->fetchAll(), 'n', 'proposal_id');
+
+    return array_map(function (array $r) use ($names, $votes, $counts) {
+        unset($r['group_id']);
+        $r['duration_sec'] = $r['duration_sec'] !== null ? (int) $r['duration_sec'] : null;
+        $r['bpm'] = $r['bpm'] !== null ? (int) $r['bpm'] : null;
+        $r['proposed_by_name'] = $r['proposed_by'] ? ($names[$r['proposed_by']] ?? 'Ancien membre') : null;
+        $r['decided_by_name'] = $r['decided_by'] ? ($names[$r['decided_by']] ?? 'Ancien membre') : null;
+        $r['votes'] = $votes[$r['id']] ?? [];
+        $r['comment_count'] = (int) ($counts[$r['id']] ?? 0);
+        return $r;
+    }, $rows);
+}
+
+function proposals_list(): never
+{
+    Auth::requireMember();
+    $status = in_array($_GET['status'] ?? '', PROPOSAL_STATUSES, true) ? $_GET['status'] : 'open';
+    $order = $status === 'open' ? 'created_at DESC' : 'decided_at DESC, created_at DESC';
+    $stmt = db()->prepare("SELECT * FROM song_proposals WHERE group_id = ? AND status = ? ORDER BY $order");
+    $stmt->execute([group_id(), $status]);
+    $rows = present_proposals($stmt->fetchAll());
+
+    // Compteurs par statut pour les onglets.
+    $cnt = db()->prepare('SELECT status, COUNT(*) AS n FROM song_proposals WHERE group_id = ? GROUP BY status');
+    $cnt->execute([group_id()]);
+    $counts = array_fill_keys(PROPOSAL_STATUSES, 0);
+    foreach ($cnt->fetchAll() as $r) {
+        $counts[$r['status']] = (int) $r['n'];
+    }
+    json_response(['items' => $rows, 'counts' => $counts]);
+}
+
+function proposal_get(string $id): never
+{
+    Auth::requireMember();
+    $prop = present_proposals([require_proposal($id)])[0];
+    $names = member_names();
+    $stmt = db()->prepare('SELECT id, user_id, body, created_at FROM song_proposal_comments WHERE proposal_id = ? ORDER BY created_at, id');
+    $stmt->execute([$id]);
+    $prop['comments'] = array_map(fn ($c) => $c + [
+        'name' => $c['user_id'] ? ($names[$c['user_id']] ?? 'Ancien membre') : 'Ancien membre',
+    ], $stmt->fetchAll());
+    json_response($prop);
+}
+
+function proposals_create(): never
+{
+    $member = Auth::requireMember();
+    Auth::enforceCsrf();
+    $fields = sanitize_proposal(read_json());
+    if (empty($fields['title'])) {
+        json_response(['error' => 'title_required'], 422);
+    }
+    $fields['id'] = uuidv4();
+    $fields['group_id'] = group_id();
+    $fields['proposed_by'] = $member['user_id'];
+    $cols = array_keys($fields);
+    $sql = 'INSERT INTO song_proposals (' . implode(', ', $cols) . ') VALUES (:' . implode(', :', $cols) . ')';
+    db()->prepare($sql)->execute($fields);
+    // Le proposeur vote « Pour » d'office (modifiable ensuite).
+    db()->prepare('INSERT INTO song_proposal_votes (proposal_id, user_id, vote) VALUES (?, ?, ?)')
+        ->execute([$fields['id'], $member['user_id'], 'pour']);
+    json_response(['id' => $fields['id']], 201);
+}
+
+function proposal_update(string $id): never
+{
+    $member = Auth::requireMember();
+    Auth::enforceCsrf();
+    require_proposal_editor(require_proposal($id), $member);
+    $fields = sanitize_proposal(read_json());
+    if (array_key_exists('title', $fields) && $fields['title'] === '') {
+        json_response(['error' => 'title_required'], 422);
+    }
+    if (!$fields) {
+        json_response(['ok' => true]);
+    }
+    $set = implode(', ', array_map(fn ($c) => "$c = :$c", array_keys($fields)));
+    $stmt = db()->prepare("UPDATE song_proposals SET $set, updated_at = NOW() WHERE id = :id AND group_id = :group_id");
+    $stmt->execute($fields + ['id' => $id, 'group_id' => group_id()]);
+    json_response(['ok' => true]);
+}
+
+function proposal_delete(string $id): never
+{
+    $member = Auth::requireMember();
+    Auth::enforceCsrf();
+    require_proposal_editor(require_proposal($id), $member);
+    db()->prepare('DELETE FROM song_proposals WHERE id = ? AND group_id = ?')->execute([$id, group_id()]);
+    json_response(['ok' => true]);
+}
+
+/** Vote du membre courant ; vote = null retire le vote. */
+function proposal_vote(string $id): never
+{
+    $member = Auth::requireMember();
+    Auth::enforceCsrf();
+    require_proposal($id);
+    $vote = read_json()['vote'] ?? null;
+    if ($vote === null) {
+        db()->prepare('DELETE FROM song_proposal_votes WHERE proposal_id = ? AND user_id = ?')
+            ->execute([$id, $member['user_id']]);
+    } elseif (in_array($vote, PROPOSAL_VOTES, true)) {
+        db()->prepare(
+            'INSERT INTO song_proposal_votes (proposal_id, user_id, vote) VALUES (?, ?, ?)
+             ON DUPLICATE KEY UPDATE vote = VALUES(vote), updated_at = NOW()'
+        )->execute([$id, $member['user_id'], $vote]);
+    } else {
+        json_response(['error' => 'invalid_vote'], 422);
+    }
+    json_response(['ok' => true]);
+}
+
+function proposal_comment_create(string $id): never
+{
+    $member = Auth::requireMember();
+    Auth::enforceCsrf();
+    require_proposal($id);
+    $body = mb_substr(trim((string) (read_json()['body'] ?? '')), 0, 2000);
+    if ($body === '') {
+        json_response(['error' => 'body_required'], 422);
+    }
+    $cid = uuidv4();
+    db()->prepare('INSERT INTO song_proposal_comments (id, proposal_id, user_id, body) VALUES (?, ?, ?, ?)')
+        ->execute([$cid, $id, $member['user_id'], $body]);
+    json_response(['id' => $cid], 201);
+}
+
+/** Suppression d'un commentaire : son auteur ou owner/admin. */
+function proposal_comment_delete(string $id, string $cid): never
+{
+    $member = Auth::requireMember();
+    Auth::enforceCsrf();
+    require_proposal($id);
+    $stmt = db()->prepare('SELECT user_id FROM song_proposal_comments WHERE id = ? AND proposal_id = ?');
+    $stmt->execute([$cid, $id]);
+    $c = $stmt->fetch();
+    if (!$c) {
+        json_response(['error' => 'not_found'], 404);
+    }
+    if ($c['user_id'] !== $member['user_id'] && !in_array($member['role'], ['owner', 'admin'], true)) {
+        json_response(['error' => 'forbidden'], 403);
+    }
+    db()->prepare('DELETE FROM song_proposal_comments WHERE id = ?')->execute([$cid]);
+    json_response(['ok' => true]);
+}
+
+/** Écarter (archive) ou remettre en cours une proposition. Tout membre. */
+function proposal_status(string $id): never
+{
+    $member = Auth::requireMember();
+    Auth::enforceCsrf();
+    require_proposal($id);
+    $status = read_json()['status'] ?? '';
+    if (!in_array($status, ['open', 'dismissed'], true)) {
+        json_response(['error' => 'invalid_status'], 422);
+    }
+    $decided = $status === 'dismissed';
+    db()->prepare(
+        'UPDATE song_proposals SET status = ?, decided_by = ?, decided_at = ' . ($decided ? 'NOW()' : 'NULL') . ',
+         updated_at = NOW() WHERE id = ? AND group_id = ?'
+    )->execute([$status, $decided ? $member['user_id'] : null, $id, group_id()]);
+    json_response(['ok' => true]);
+}
+
+/**
+ * Ajoute la proposition au répertoire (tout membre). Idempotent ; si un morceau
+ * de même titre + artiste existe déjà, on le lie au lieu de créer un doublon.
+ */
+function proposal_add_to_repertoire(string $id): never
+{
+    $member = Auth::requireMember();
+    Auth::enforceCsrf();
+    $prop = require_proposal($id);
+    if ($prop['status'] === 'added' && $prop['song_id']) {
+        json_response(['song_id' => $prop['song_id'], 'existing' => true]);
+    }
+    $dup = db()->prepare('SELECT id FROM songs WHERE group_id = ? AND title = ? AND COALESCE(artist, \'\') = ? LIMIT 1');
+    $dup->execute([group_id(), $prop['title'], $prop['artist'] ?? '']);
+    $songId = $dup->fetchColumn() ?: null;
+    $existing = $songId !== null;
+    if (!$existing) {
+        $songId = song_insert(array_filter([
+            'title'        => $prop['title'],
+            'artist'       => $prop['artist'],
+            'album'        => $prop['album'],
+            'duration_sec' => $prop['duration_sec'],
+            'music_key'    => $prop['music_key'],
+            'bpm'          => $prop['bpm'],
+            'cover'        => $prop['cover'],
+            'type'         => 'reprise',
+            'mastery'      => 0,
+        ], fn ($v) => $v !== null));
+    }
+    db()->prepare(
+        'UPDATE song_proposals SET status = ?, song_id = ?, decided_by = ?, decided_at = NOW(), updated_at = NOW()
+         WHERE id = ? AND group_id = ?'
+    )->execute(['added', $songId, $member['user_id'], $id, group_id()]);
+    json_response(['song_id' => $songId, 'existing' => $existing], $existing ? 200 : 201);
+}
+
+// ---------------------------------------------------------------------------
 // Facturation (association) — paramètres émetteur + génération de factures PDF
 // ---------------------------------------------------------------------------
 
@@ -2220,6 +2516,17 @@ $routes = [
     ['PATCH',  '#^/booking/([^/]+)$#',          'booking_update'],
     ['DELETE', '#^/booking/([^/]+)$#',          'booking_delete'],
     ['POST',   '#^/booking/([^/]+)/confirm$#',  'booking_confirm'],
+
+    ['GET',    '#^/proposals$#',                'proposals_list'],
+    ['POST',   '#^/proposals$#',                'proposals_create'],
+    ['GET',    '#^/proposals/([^/]+)$#',        'proposal_get'],
+    ['PATCH',  '#^/proposals/([^/]+)$#',        'proposal_update'],
+    ['DELETE', '#^/proposals/([^/]+)$#',        'proposal_delete'],
+    ['PUT',    '#^/proposals/([^/]+)/vote$#',   'proposal_vote'],
+    ['POST',   '#^/proposals/([^/]+)/status$#', 'proposal_status'],
+    ['POST',   '#^/proposals/([^/]+)/add$#',    'proposal_add_to_repertoire'],
+    ['POST',   '#^/proposals/([^/]+)/comments$#', 'proposal_comment_create'],
+    ['DELETE', '#^/proposals/([^/]+)/comments/([^/]+)$#', 'proposal_comment_delete'],
 
     ['GET',    '#^/push/vapid-public-key$#',    'push_vapid_key'],
     ['POST',   '#^/push/subscribe$#',           'push_subscribe'],

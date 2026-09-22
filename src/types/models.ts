@@ -268,3 +268,46 @@ export interface BookingLead {
   /** Référence vers la fiche du répertoire (source de vérité du contact). */
   contact_id: string | null;
 }
+
+// --- Propositions de morceaux ---
+
+export type ProposalStatus = 'open' | 'added' | 'dismissed';
+export type ProposalVote = 'pour' | 'bof' | 'contre';
+
+export interface ProposalVoteEntry {
+  user_id: string;
+  name: string;
+  vote: ProposalVote;
+}
+
+export interface ProposalComment {
+  id: string;
+  user_id: string | null;
+  name: string;
+  body: string;
+  created_at: string;
+}
+
+export interface SongProposal {
+  id: string;
+  title: string;
+  artist: string | null;
+  album: string | null;
+  duration_sec: number | null;
+  music_key: string | null;
+  bpm: number | null;
+  cover: string | null;
+  listen_url: string | null;
+  pitch: string | null;
+  status: ProposalStatus;
+  song_id: string | null;
+  proposed_by: string | null;
+  proposed_by_name: string | null;
+  decided_by_name: string | null;
+  decided_at: string | null;
+  created_at: string;
+  votes: ProposalVoteEntry[];
+  comment_count: number;
+  /** Présent uniquement sur GET /proposals/:id. */
+  comments?: ProposalComment[];
+}

@@ -31,6 +31,7 @@ export function AppShell() {
           <NavLink to="/contacts">Contacts</NavLink>
           <NavLink to="/setlists">Setlists</NavLink>
           <NavLink to="/repertoire">Répertoire</NavLink>
+          <NavLink to="/propositions">Propositions</NavLink>
           <NavLink to="/settings">Réglages</NavLink>
         </nav>
       </header>

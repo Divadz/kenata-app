@@ -14,6 +14,7 @@ kenata-config.php
 
 # Scripts de migration jetables
 api/_migrate.php
+api/_export.php
 
 # Exemples de factures (données réelles) — ne pas versionner
 Facture_*.pdf

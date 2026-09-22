@@ -288,6 +288,58 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
   CONSTRAINT fk_push_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Propositions de morceaux : un membre propose, tous votent / commentent, puis
+-- n'importe quel membre l'ajoute au répertoire (song_id) ou l'écarte (archivée).
+CREATE TABLE IF NOT EXISTS song_proposals (
+  id           CHAR(36)      NOT NULL,
+  group_id     VARCHAR(64)   NOT NULL,
+  title        VARCHAR(255)  NOT NULL,
+  artist       VARCHAR(255)  NULL,
+  album        VARCHAR(255)  NULL,
+  duration_sec INT           NULL,
+  music_key    VARCHAR(64)   NULL,
+  bpm          INT           NULL,
+  cover        VARCHAR(1024) NULL,
+  listen_url   VARCHAR(1024) NULL,
+  pitch        TEXT          NULL,
+  status       ENUM('open','added','dismissed') NOT NULL DEFAULT 'open',
+  song_id      CHAR(36)      NULL,
+  proposed_by  CHAR(36)      NULL,
+  decided_by   CHAR(36)      NULL,
+  decided_at   DATETIME      NULL,
+  created_at   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_group_status (group_id, status),
+  CONSTRAINT fk_prop_group FOREIGN KEY (group_id)    REFERENCES app_group(id) ON DELETE CASCADE,
+  CONSTRAINT fk_prop_song  FOREIGN KEY (song_id)     REFERENCES songs(id)     ON DELETE SET NULL,
+  CONSTRAINT fk_prop_user  FOREIGN KEY (proposed_by) REFERENCES users(id)     ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Un vote par membre et par proposition (modifiable).
+CREATE TABLE IF NOT EXISTS song_proposal_votes (
+  proposal_id CHAR(36) NOT NULL,
+  user_id     CHAR(36) NOT NULL,
+  vote        ENUM('pour','bof','contre') NOT NULL,
+  updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (proposal_id, user_id),
+  CONSTRAINT fk_pvote_prop FOREIGN KEY (proposal_id) REFERENCES song_proposals(id) ON DELETE CASCADE,
+  CONSTRAINT fk_pvote_user FOREIGN KEY (user_id)     REFERENCES users(id)          ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Fil de discussion d'une proposition.
+CREATE TABLE IF NOT EXISTS song_proposal_comments (
+  id          CHAR(36) NOT NULL,
+  proposal_id CHAR(36) NOT NULL,
+  user_id     CHAR(36) NULL,
+  body        TEXT     NOT NULL,
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_prop (proposal_id, created_at),
+  CONSTRAINT fk_pcom_prop FOREIGN KEY (proposal_id) REFERENCES song_proposals(id) ON DELETE CASCADE,
+  CONSTRAINT fk_pcom_user FOREIGN KEY (user_id)     REFERENCES users(id)          ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Amorçage du groupe unique (renseigne l'id depuis la config : ex. 'kenata').
 INSERT INTO app_group (id, name) VALUES ('kenata', 'Kenata')
   ON DUPLICATE KEY UPDATE name = name;
