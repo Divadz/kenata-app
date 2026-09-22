@@ -609,7 +609,8 @@ code { font-family: var(--mono); font-size: 0.85em; color: var(--cyan); }
 /* Feuille de route : rangée compacte, l'étape occupe l'espace restant, tout tient dans le cadre. */
 .roadmap-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.4rem; width: 100%; }
 .roadmap-row { display: flex; align-items: center; gap: 0.4rem; width: 100%; }
-.roadmap-row .rm-time { flex: none; }
+/* Largeur fixe : surcharge le width:100% global des input[type="time"]. */
+.roadmap-row .rm-time { flex: none; width: 6.5rem; }
 .roadmap-row .rm-label { flex: 1; min-width: 0; }
 /* Croix de suppression à la même hauteur que les champs de saisie. */
 .roadmap-row .rm-del { flex: none; align-self: stretch; }
