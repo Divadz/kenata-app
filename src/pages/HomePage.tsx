@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { formatHM } from '../utils/duration';
 import type { ConcertSummary, ContactInfo } from '../types/models';
-import { countdownLabel, daysUntil, useConcerts } from '../features/concerts/useConcerts';
+import { PayModal, shortDate } from '../features/concerts/PayModal';
+import { countdownLabel, daysUntil, updateConcert, useConcerts } from '../features/concerts/useConcerts';
 
 /** Contact à appeler : régie son en priorité, sinon organisateur (nom + numéro requis). */
 function callContact(c: ConcertSummary): (ContactInfo & { role: string }) | null {
@@ -99,9 +101,44 @@ function HomeConcertCard({ c }: { c: ConcertSummary }) {
   );
 }
 
+/** Ligne « à encaisser » : concert passé dont le cachet n'est pas encore rentré. */
+function UnpaidRow({ c, onMarkPaid }: { c: ConcertSummary; onMarkPaid: () => void }) {
+  const late = -(daysUntil(c.date) ?? 0);
+
+  return (
+    <li className="unpaid-row">
+      <div className="unpaid-main">
+        <Link className="link-plain" to={`/concerts/${c.id}`}>
+          <strong>{c.venue_name || 'Sans titre'}</strong>
+        </Link>
+        <span className="muted small">
+          {shortDate(c.date)}
+          {late > 0 && ` · il y a ${late} jour${late > 1 ? 's' : ''}`}
+        </span>
+      </div>
+      <div className="unpaid-side">
+        <span className="mono unpaid-fee">{c.fee}</span>
+        {c.fee_guso && <span className="badge">GUSO</span>}
+        {c.invoice_sent && <span className="badge sent">facturé</span>}
+        <button className="btn small" onClick={onMarkPaid}>
+          💶 Payé
+        </button>
+      </div>
+    </li>
+  );
+}
+
 export function HomePage() {
   const { member } = useAuth();
-  const { concerts } = useConcerts();
+  const { concerts, reload } = useConcerts();
+  const [payTarget, setPayTarget] = useState<ConcertSummary | null>(null);
+
+  async function confirmPaid(date: string) {
+    if (!payTarget) return;
+    await updateConcert(payTarget.id, { paid: true, paid_date: date });
+    setPayTarget(null);
+    await reload();
+  }
 
   const ts = (c: ConcertSummary) => (c.date ? new Date(c.date + 'T00:00:00').getTime() : null);
   // Les 3 prochains concerts datés (aujourd'hui ou futur), par date croissante.
@@ -112,6 +149,14 @@ export function HomePage() {
     })
     .sort((a, b) => (ts(a) ?? 0) - (ts(b) ?? 0))
     .slice(0, 3);
+
+  // Concerts passés, non réglés, dont un cachet est renseigné : le plus ancien d'abord.
+  const unpaid = concerts
+    .filter((c) => {
+      const d = daysUntil(c.date);
+      return d !== null && d < 0 && !c.paid && !c.is_option && !!c.fee?.trim();
+    })
+    .sort((a, b) => (ts(a) ?? 0) - (ts(b) ?? 0));
 
   return (
     <section className="stack full">
@@ -126,6 +171,28 @@ export function HomePage() {
             ))}
           </div>
         </>
+      )}
+
+      {unpaid.length > 0 && (
+        <>
+          <h3 className="full">
+            À encaisser <span className="muted">· {unpaid.length}</span>
+          </h3>
+          <ul className="card unpaid-list full">
+            {unpaid.map((c) => (
+              <UnpaidRow key={c.id} c={c} onMarkPaid={() => setPayTarget(c)} />
+            ))}
+          </ul>
+        </>
+      )}
+
+      {payTarget && (
+        <PayModal
+          venueName={payTarget.venue_name}
+          date={payTarget.date}
+          onCancel={() => setPayTarget(null)}
+          onConfirm={confirmPaid}
+        />
       )}
     </section>
   );
