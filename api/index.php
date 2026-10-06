@@ -1753,8 +1753,16 @@ function present_proposals(array $rows): array
         unset($r['group_id']);
         $r['duration_sec'] = $r['duration_sec'] !== null ? (int) $r['duration_sec'] : null;
         $r['bpm'] = $r['bpm'] !== null ? (int) $r['bpm'] : null;
+        // « Ajoutée » est DÉDUIT de la présence au répertoire : supprimer le morceau
+        // (song_id passe à NULL via la clé étrangère) remet la proposition en cours.
+        $r['status'] = $r['song_id'] ? 'added' : ($r['status'] === 'dismissed' ? 'dismissed' : 'open');
         $r['proposed_by_name'] = $r['proposed_by'] ? ($names[$r['proposed_by']] ?? 'Ancien membre') : null;
         $r['decided_by_name'] = $r['decided_by'] ? ($names[$r['decided_by']] ?? 'Ancien membre') : null;
+        if ($r['status'] === 'open') {
+            // Décision périmée (morceau retiré du répertoire) : on ne l'affiche plus.
+            $r['decided_by_name'] = null;
+            $r['decided_at'] = null;
+        }
         $r['votes'] = $votes[$r['id']] ?? [];
         $r['comment_count'] = (int) ($counts[$r['id']] ?? 0);
         return $r;
@@ -1765,17 +1773,24 @@ function proposals_list(): never
 {
     Auth::requireMember();
     $status = in_array($_GET['status'] ?? '', PROPOSAL_STATUSES, true) ? $_GET['status'] : 'open';
+    // Le statut effectif se lit sur song_id (cf. present_proposals) : un morceau
+    // retiré du répertoire fait repasser sa proposition en « en cours ».
+    $where = [
+        'added'     => 'song_id IS NOT NULL',
+        'dismissed' => "song_id IS NULL AND status = 'dismissed'",
+        'open'      => "song_id IS NULL AND status <> 'dismissed'",
+    ];
     $order = $status === 'open' ? 'created_at DESC' : 'decided_at DESC, created_at DESC';
-    $stmt = db()->prepare("SELECT * FROM song_proposals WHERE group_id = ? AND status = ? ORDER BY $order");
-    $stmt->execute([group_id(), $status]);
+    $stmt = db()->prepare("SELECT * FROM song_proposals WHERE group_id = ? AND {$where[$status]} ORDER BY $order");
+    $stmt->execute([group_id()]);
     $rows = present_proposals($stmt->fetchAll());
 
-    // Compteurs par statut pour les onglets.
-    $cnt = db()->prepare('SELECT status, COUNT(*) AS n FROM song_proposals WHERE group_id = ? GROUP BY status');
-    $cnt->execute([group_id()]);
-    $counts = array_fill_keys(PROPOSAL_STATUSES, 0);
-    foreach ($cnt->fetchAll() as $r) {
-        $counts[$r['status']] = (int) $r['n'];
+    // Compteurs par statut pour les onglets, sur les mêmes critères.
+    $counts = [];
+    foreach ($where as $key => $cond) {
+        $cnt = db()->prepare("SELECT COUNT(*) FROM song_proposals WHERE group_id = ? AND $cond");
+        $cnt->execute([group_id()]);
+        $counts[$key] = (int) $cnt->fetchColumn();
     }
     json_response(['items' => $rows, 'counts' => $counts]);
 }
@@ -1900,10 +1915,15 @@ function proposal_status(string $id): never
 {
     $member = Auth::requireMember();
     Auth::enforceCsrf();
-    require_proposal($id);
+    $prop = require_proposal($id);
     $status = read_json()['status'] ?? '';
     if (!in_array($status, ['open', 'dismissed'], true)) {
         json_response(['error' => 'invalid_status'], 422);
+    }
+    // Tant que le morceau est au répertoire, le statut en découle : on refuse
+    // plutôt que de laisser croire à un changement sans effet.
+    if ($prop['song_id']) {
+        json_response(['error' => 'still_in_repertoire'], 409);
     }
     $decided = $status === 'dismissed';
     db()->prepare(
@@ -1922,7 +1942,7 @@ function proposal_add_to_repertoire(string $id): never
     $member = Auth::requireMember();
     Auth::enforceCsrf();
     $prop = require_proposal($id);
-    if ($prop['status'] === 'added' && $prop['song_id']) {
+    if ($prop['song_id']) {
         json_response(['song_id' => $prop['song_id'], 'existing' => true]);
     }
     $dup = db()->prepare('SELECT id FROM songs WHERE group_id = ? AND title = ? AND COALESCE(artist, \'\') = ? LIMIT 1');

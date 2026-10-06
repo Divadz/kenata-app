@@ -204,11 +204,17 @@ export function ProposalModal({ proposalId, onClose, onSaved }: Props) {
             {prop.pitch && <p className="prop-pitch">{prop.pitch}</p>}
 
             {prop.status === 'added' && (
-              <p className="prop-state ok">
-                ✓ Ajouté au répertoire{prop.decided_by_name ? ` par ${prop.decided_by_name}` : ''} le {frDate(prop.decided_at)}
-                {' · '}
-                <Link to="/repertoire">Voir le répertoire</Link>
-              </p>
+              <>
+                <p className="prop-state ok">
+                  ✓ Ajouté au répertoire{prop.decided_by_name ? ` par ${prop.decided_by_name}` : ''} le {frDate(prop.decided_at)}
+                  {' · '}
+                  <Link to="/repertoire">Voir le répertoire</Link>
+                </p>
+                <p className="muted small">
+                  Pour la remettre en cours, supprime le morceau du répertoire : la proposition y revient
+                  automatiquement.
+                </p>
+              </>
             )}
             {prop.status === 'dismissed' && (
               <p className="prop-state">
