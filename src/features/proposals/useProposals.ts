@@ -79,3 +79,19 @@ export function listenLabel(url: string): string {
   if (u.includes('bandcamp')) return 'Bandcamp';
   return 'Écouter';
 }
+
+/**
+ * Ordre de l'onglet « En cours » : ce qui attend mon vote d'abord, puis le plus
+ * de « pour », puis le plus de « bof ». À égalité, l'ordre d'entrée (le plus
+ * récent d'abord, côté serveur) est conservé — le tri de JS est stable.
+ */
+export function sortOpenProposals(items: SongProposal[], userId?: string): SongProposal[] {
+  const voted = (p: SongProposal) => (p.votes.some((v) => v.user_id === userId) ? 1 : 0);
+  return [...items].sort((a, b) => {
+    const byVoted = voted(a) - voted(b);
+    if (byVoted !== 0) return byVoted;
+    const ta = tally(a);
+    const tb = tally(b);
+    return tb.pour - ta.pour || tb.bof - ta.bof;
+  });
+}

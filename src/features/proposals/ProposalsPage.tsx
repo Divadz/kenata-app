@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { ProposalStatus, ProposalVote, SongProposal } from '../../types/models';
 import { useAuth } from '../../auth/AuthProvider';
 import { ProposalModal } from './ProposalModal';
-import { VOTES, listenLabel, tally, useProposals, voteProposal } from './useProposals';
+import { VOTES, listenLabel, sortOpenProposals, tally, useProposals, voteProposal } from './useProposals';
 
 const TABS: { id: ProposalStatus; label: string }[] = [
   { id: 'open', label: 'En cours' },
@@ -13,8 +13,16 @@ const TABS: { id: ProposalStatus; label: string }[] = [
 export function ProposalsPage() {
   const [status, setStatus] = useState<ProposalStatus>('open');
   const { items, counts, loading, reload } = useProposals(status);
+  const { member } = useAuth();
   // undefined = fermée, null = nouvelle proposition, sinon id ouvert.
   const [open, setOpen] = useState<string | null | undefined>(undefined);
+
+  // L'onglet En cours suit l'ordre de vote ; Ajoutées / Écartées gardent l'ordre
+  // chronologique des décisions renvoyé par le serveur.
+  const visible = useMemo(
+    () => (status === 'open' ? sortOpenProposals(items, member?.user_id) : items),
+    [items, status, member]
+  );
 
   return (
     <section className="stack full">
@@ -41,7 +49,7 @@ export function ProposalsPage() {
 
       {loading ? (
         <p className="muted">Chargement…</p>
-      ) : items.length === 0 ? (
+      ) : visible.length === 0 ? (
         <p className="muted">
           {status === 'open'
             ? 'Aucune proposition en cours. Un morceau à reprendre ? Propose-le au groupe !'
@@ -51,7 +59,7 @@ export function ProposalsPage() {
         </p>
       ) : (
         <ul className="prop-list full">
-          {items.map((p) => (
+          {visible.map((p) => (
             <ProposalCard key={p.id} p={p} onOpen={() => setOpen(p.id)} onVoted={reload} />
           ))}
         </ul>
