@@ -17,11 +17,13 @@ export function ProposalsPage() {
   // undefined = fermée, null = nouvelle proposition, sinon id ouvert.
   const [open, setOpen] = useState<string | null | undefined>(undefined);
 
-  // L'onglet En cours suit l'ordre de vote ; Ajoutées / Écartées gardent l'ordre
-  // chronologique des décisions renvoyé par le serveur.
+  // Par défaut, l'ordre du serveur (plus récent d'abord). Le tri par votes est
+  // optionnel : il ne concerne que l'onglet En cours, où le vote a un sens.
+  const [byVotes, setByVotes] = useState(false);
+  const sortable = status === 'open';
   const visible = useMemo(
-    () => (status === 'open' ? sortOpenProposals(items, member?.user_id) : items),
-    [items, status, member]
+    () => (sortable && byVotes ? sortOpenProposals(items, member?.user_id) : items),
+    [items, sortable, byVotes, member]
   );
 
   return (
@@ -33,18 +35,31 @@ export function ProposalsPage() {
         </button>
       </div>
 
-      <div className="tabs-inline">
-        {TABS.map((t) => (
+      <div className="row between full prop-toolbar">
+        <div className="tabs-inline">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              aria-pressed={status === t.id}
+              className={`tab ${status === t.id ? 'active' : ''}`}
+              onClick={() => setStatus(t.id)}
+            >
+              {t.label} <span className="mono">{counts[t.id]}</span>
+            </button>
+          ))}
+        </div>
+        {sortable && (
           <button
-            key={t.id}
             type="button"
-            aria-pressed={status === t.id}
-            className={`tab ${status === t.id ? 'active' : ''}`}
-            onClick={() => setStatus(t.id)}
+            className={`btn small sort-toggle${byVotes ? ' toggled' : ''}`}
+            aria-pressed={byVotes}
+            title={byVotes ? 'Revenir à l’ordre par date' : 'À voter d’abord, puis le plus de « pour »'}
+            onClick={() => setByVotes((v) => !v)}
           >
-            {t.label} <span className="mono">{counts[t.id]}</span>
+            ↕ Trier par votes
           </button>
-        ))}
+        )}
       </div>
 
       {loading ? (
